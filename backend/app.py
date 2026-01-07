@@ -15,7 +15,7 @@ def create_app():
     socketio = SocketIO(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
     
     app.register_blueprint(auth_bp)
-    
+     
     # Create tables
     with app.app_context():
         db.create_all()

@@ -25,4 +25,4 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   return children ? children : <Outlet />;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoute; 

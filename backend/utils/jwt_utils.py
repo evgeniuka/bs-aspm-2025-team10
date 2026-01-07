@@ -10,7 +10,7 @@ def generate_token(user_id, role):
         'role': role,
         'exp': datetime.utcnow() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
         'iat': datetime.utcnow()
-    }
+    } 
     return jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
 
 def decode_token(token):

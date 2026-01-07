@@ -5,7 +5,7 @@ from models.user import db, User
 
 app, _ = create_app()
 app.app_context().push()
-
+ 
 if not User.query.filter_by(email="daniel@fitcoach.com").first():
     trainer = User(
         email="daniel@fitcoach.com",

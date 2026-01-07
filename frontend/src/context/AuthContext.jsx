@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  useEffect(() => { 
     const initializeAuth = async () => {
       if (authService.isAuthenticated()) {
         try {

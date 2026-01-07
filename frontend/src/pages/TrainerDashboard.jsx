@@ -12,4 +12,4 @@ const TrainerDashboard = () => {
   );
 };
 
-export default TrainerDashboard;
+export default TrainerDashboard;  

@@ -67,5 +67,5 @@ export const authService = {
       }
     }
     return null;
-  },
+  }, 
 };

@@ -12,7 +12,7 @@ const TraineeDashboard = () => <div style={{ padding: '20px' }}>🏃 Trainee Das
 
 function App() {
   return (
-    <>
+    <> 
       <Navbar /> 
       <Routes>
         <Route path="/login" element={<Login />} />
