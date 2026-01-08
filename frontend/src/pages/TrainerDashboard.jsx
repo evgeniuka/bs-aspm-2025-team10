@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Container, Typography, Button, Grid, Alert, Snackbar } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { clientService } from '../services/clientService';
@@ -9,6 +10,7 @@ import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
 
 const TrainerDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,11 +86,17 @@ const TrainerDashboard = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" onClick={() => setOpenExerciseLibrary(true)}>
+          {/* <Button variant="outlined" onClick={() => setOpenExerciseLibrary(true)}>
             Exercise Library
-          </Button>
+          </Button> */}
           <Button variant="contained" onClick={() => setOpenModal(true)}>
             Add Client
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={() => navigate('/trainer/program/new')} 
+          >
+            Create Program
           </Button>
         </Box>
       </Box>

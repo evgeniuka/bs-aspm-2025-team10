@@ -4,6 +4,7 @@ import Login from './components/auth/Login';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import TrainerDashboard from './pages/TrainerDashboard';
 import TraineeDashboard from './pages/TraineeDashboard';
+import ProgramBuilder from './pages/ProgramBuilder';
 import Navbar from './components/Navbar';
 
 // const TrainerDashboard = () => <div style={{ padding: '20px' }}>🏋️ Trainer Dashboard</div>;
@@ -34,6 +35,15 @@ function App() {
           }
         />
         
+        <Route
+          path="/trainer/program/new"
+          element={
+            <ProtectedRoute requiredRole="trainer">
+              <ProgramBuilder />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

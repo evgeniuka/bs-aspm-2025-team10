@@ -122,11 +122,11 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
             </Typography>
             {selectedExercises.length > 0 && (
                 <Button 
-                variant="contained" 
-                onClick={() => {
-                    console.log('Selected exercises to add to program:', selectedExercises);
-                    onClose(); // Закрываем модал
-                }}
+                  variant="contained" 
+                  onClick={() => {
+                    onAddExercise(selectedExercises);
+                    onClose(); 
+                  }}
                 >
                 Confirm
                 </Button>

@@ -22,6 +22,9 @@ export const clientService = {
   getExercises: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return clientApi.get(`/exercises${query ? '?' + query : ''}`);
+  },
+  createProgram: (data) => {
+    return clientApi.post('/programs', data);
   }
 };
 
