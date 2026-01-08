@@ -1,8 +1,11 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from models.user import db
+from models import db
+from models.user import User
+from models.client import Client
 from controllers.auth_controller import auth_bp
+from controllers.client_controller import client_bp
 from config import Config
 
 def create_app():
@@ -15,6 +18,7 @@ def create_app():
     socketio = SocketIO(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
     
     app.register_blueprint(auth_bp)
+    app.register_blueprint(client_bp)
      
     # Create tables
     with app.app_context():

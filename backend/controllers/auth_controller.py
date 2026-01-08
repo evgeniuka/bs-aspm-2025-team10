@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from models.user import db, User
+from models import db
+from models.user import User
 from utils.jwt_utils import generate_token, token_required
 from datetime import datetime
 

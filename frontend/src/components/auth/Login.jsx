@@ -50,171 +50,173 @@ const Login = () => {
 
   return (
     <Container maxWidth="xl" sx={{ height: '100vh', display: 'flex', alignItems: 'center', bgcolor: '#f5f5f5' }}>
-      {/* left panel */}
-      <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#eeeeee', p: 4 }}>
-        <Box
-          sx={{
-            width: 150,
-            height: 150,
-            bgcolor: 'white',
-            border: '2px solid #bdbdbd',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6">LOGO</Typography>
-        </Box>
-        <Typography variant="h4" align="center" fontWeight="bold" color="text.secondary" gutterBottom>
-          Transform Your Fitness Journey
-        </Typography>
-        <Typography variant="body1" align="center" color="text.secondary">
-          Connect. Train. Achieve.
-        </Typography>
-      </Grid>
-
-      {/* right panel */}
-      <Grid item xs={12} md={6} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: 400,
-            p: 4,
-            bgcolor: 'white',
-            borderRadius: 2,
-            boxShadow: 3,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <Typography variant="h4" component="h1" fontWeight="bold" align="center" gutterBottom>
-            Sign in to FitCoach
-          </Typography>
-          {/* role selector */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-  <Button
-    variant={role === 'trainer' ? 'contained' : 'outlined'}
-    onClick={() => setRole('trainer')}
-    fullWidth
-    sx={{
-      mt: 2,
-      py: 1.5,
-      fontWeight: 'bold',
-      backgroundColor: role === 'trainer' ? 'black' : 'transparent',
-      color: role === 'trainer' ? 'white' : 'black',
-      border: role === 'trainer' ? '1px solid black' : '1px solid black',
-      '&:hover': {
-        backgroundColor: 'gray',
-      },
-    }}
-  >
-    Trainer
-  </Button>
-  <Button
-    variant={role === 'trainee' ? 'contained' : 'outlined'}
-    onClick={() => setRole('trainee')}
-    fullWidth
-    sx={{
-      mt: 2,
-      py: 1.5,
-      fontWeight: 'bold',
-      backgroundColor: role === 'trainee' ? 'black' : 'transparent',
-      color: role === 'trainee' ? 'white' : 'black',
-      border: role === 'trainee' ? '1px solid black' : '1px solid black',
-      '&:hover': {
-        backgroundColor: 'gray', 
-      },
-    }}
-  >
-    Trainee
-  </Button>
-</Box>
-
-          <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            required
-            placeholder="your.email@example.com"
-            error={!!error}
-            helperText={error}
-            variant="outlined"
-            size="small"
-          />
-
-
-          <TextField
-            label="Password "
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            placeholder="••••••••"
-            variant="outlined"
-            size="small"
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle password visibility"
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-            <FormControlLabel
-              control={<Checkbox />}
-              label="Remember me"
-              sx={{ fontSize: '0.875rem' }}
-            />
-            <Link href="#" variant="body2">
-              Forgot password?
-            </Link>
-          </Box>
-
-          {/* Sign in button */}
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            onClick={handleSubmit}
-            disabled={loading}
+      <Grid container sx={{ height: '100%' }}>
+        {/* left panel */}
+        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#eeeeee', p: 4 }}>
+          <Box
             sx={{
-              mt: 2, 
-              py: 1.5, 
-              fontWeight: 'bold',
-              backgroundColor: 'black',
-              color: 'white',
-              '&:hover': {
-                backgroundColor: 'gray',
-              },
+              width: 150,
+              height: 150,
+              bgcolor: 'white',
+              border: '2px solid #bdbdbd',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 2,
             }}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
-
-          {/* Registration */}
-          <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-            Don't have an account?{' '}
-            <Link href="/register" variant="body2" fontWeight="bold">
-              Create account
-            </Link>
+            <Typography variant="h6">LOGO</Typography>
+          </Box>
+          <Typography variant="h4" align="center" fontWeight="bold" color="text.secondary" gutterBottom>
+            Transform Your Fitness Journey
           </Typography>
+          <Typography variant="body1" align="center" color="text.secondary">
+            Connect. Train. Achieve.
+          </Typography>
+        </Grid>
+
+        {/* right panel */}
+        <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: 400,
+              p: 4,
+              bgcolor: 'white',
+              borderRadius: 2,
+              boxShadow: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
+            <Typography variant="h4" component="h1" fontWeight="bold" align="center" gutterBottom>
+              Sign in to FitCoach
+            </Typography>
+            {/* role selector */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Button
+                variant={role === 'trainer' ? 'contained' : 'outlined'}
+                onClick={() => setRole('trainer')}
+                fullWidth
+                sx={{
+                  mt: 2,
+                  py: 1.5,
+                  fontWeight: 'bold',
+                  backgroundColor: role === 'trainer' ? 'black' : 'transparent',
+                  color: role === 'trainer' ? 'white' : 'black',
+                  border: role === 'trainer' ? '1px solid black' : '1px solid black',
+                  '&:hover': {
+                    backgroundColor: 'gray',
+                  },
+                }}
+              >
+                Trainer
+              </Button>
+              <Button
+                variant={role === 'trainee' ? 'contained' : 'outlined'}
+                onClick={() => setRole('trainee')}
+                fullWidth
+                sx={{
+                  mt: 2,
+                  py: 1.5,
+                  fontWeight: 'bold',
+                  backgroundColor: role === 'trainee' ? 'black' : 'transparent',
+                  color: role === 'trainee' ? 'white' : 'black',
+                  border: role === 'trainee' ? '1px solid black' : '1px solid black',
+                  '&:hover': {
+                    backgroundColor: 'gray', 
+                  },
+                }}
+              >
+                Trainee
+              </Button>
+            </Box>
+
+            <TextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+              required
+              placeholder="your.email@example.com"
+              error={!!error}
+              helperText={error}
+              variant="outlined"
+              size="small"
+            />
+
+
+            <TextField
+              label="Password "
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              required
+              placeholder="••••••••"
+              variant="outlined"
+              size="small"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+              <FormControlLabel
+                control={<Checkbox />}
+                label="Remember me"
+                sx={{ fontSize: '0.875rem' }}
+              />
+              <Link href="#" variant="body2">
+                Forgot password?
+              </Link>
+            </Box>
+
+            {/* Sign in button */}
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+              onClick={handleSubmit}
+              disabled={loading}
+              sx={{
+                mt: 2, 
+                py: 1.5, 
+                fontWeight: 'bold',
+                backgroundColor: 'black',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'gray',
+                },
+              }}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+
+            {/* Registration */}
+            <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+              Don't have an account?{' '}
+              <Link href="/register" variant="body2" fontWeight="bold">
+                Create account
+              </Link>
+            </Typography>
         </Box>
       </Grid>
-    </Container>
+    </Grid>
+  </Container>
   );
 };
 

@@ -35,10 +35,29 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
+  // const login = async (email, password, rememberMe = false) => {
+  //   const { token, user: userData } = await authService.login(email, password, rememberMe);
+  //   setUser(userData);
+  //   return userData;
+  // };
+
   const login = async (email, password, rememberMe = false) => {
-    const { token, user: userData } = await authService.login(email, password, rememberMe);
+    const { user: userData, token } = await authService.login(email, password, rememberMe);
     setUser(userData);
-    return userData;
+
+    // ✅ ВАЖНО: Сохраняем токен
+    if (rememberMe) {
+      localStorage.setItem('token', token);
+    } else {
+      sessionStorage.setItem('token', token);
+    }
+
+    // Перенаправляем
+    if (userData.role === 'trainer') {
+      navigate('/trainer/dashboard');
+    } else if (userData.role === 'trainee') {
+      navigate('/trainee/dashboard');
+    }
   };
 
   const logout = async () => {
