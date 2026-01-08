@@ -11,6 +11,8 @@ from models.exercise import Exercise
 from controllers.exercise_controller import exercise_bp
 from models.program import Program, ProgramExercise
 from controllers.program_controller import program_bp
+from models.session import Session, SessionClient
+from controllers.session_controller import session_bp
 
 def create_app():
     app = Flask(__name__)
@@ -25,6 +27,7 @@ def create_app():
     app.register_blueprint(client_bp)
     app.register_blueprint(exercise_bp)
     app.register_blueprint(program_bp)
+    app.register_blueprint(session_bp)
      
     # Create tables
     with app.app_context():

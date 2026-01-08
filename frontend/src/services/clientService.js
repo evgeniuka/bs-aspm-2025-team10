@@ -25,6 +25,12 @@ export const clientService = {
   },
   createProgram: (data) => {
     return clientApi.post('/programs', data);
-  }
+  },
+  createSession: (data) => {
+    return clientApi.post('/sessions', data);
+  },
+  getProgramsByClient: (clientId) => {
+  return clientApi.get(`/programs?client_id=${clientId}`);
+},
 };
 

@@ -5,6 +5,7 @@ from models.client import Client
 from models.exercise import Exercise
 from models.program import Program, ProgramExercise
 from utils.jwt_utils import token_required
+from models.exercise import Exercise
 
 program_bp = Blueprint('program', __name__, url_prefix='/api/programs')
 
@@ -79,3 +80,28 @@ def create_program():
     
     db.session.commit()
     return jsonify({'message': 'Program created', 'program_id': program.id}), 201
+
+@program_bp.route('', methods=['GET'])
+@token_required
+def get_programs():
+    trainer_id = request.user_id
+    client_id = request.args.get('client_id')
+    
+    if not client_id:
+        return jsonify({'error': 'client_id is required'}), 400
+    
+    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
+    if not client:
+        return jsonify({'error': 'Client not found or not owned by trainer'}), 404
+    
+    programs = Program.query.filter_by(client_id=client_id).all()
+    result = []
+    for p in programs:
+        exercises = ProgramExercise.query.filter_by(program_id=p.id).all()
+        result.append({
+            'id': p.id,
+            'name': p.name,
+            'exercises': [{'id': ex.id, 'name': ex.exercise.name} for ex in exercises]  
+        })
+    
+    return jsonify(result), 200

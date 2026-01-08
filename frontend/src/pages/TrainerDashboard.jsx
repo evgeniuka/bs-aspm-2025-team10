@@ -7,6 +7,7 @@ import ClientCard from '../components/client/ClientCard';
 import ClientFormModal from '../components/client/ClientFormModal';
 import ConfirmDialog from '../components/client/ConfirmDialog';
 import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
+import StartSessionModal from '../components/session/StartSessionModal';
 
 const TrainerDashboard = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const TrainerDashboard = () => {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [openExerciseLibrary, setOpenExerciseLibrary] = useState(false);
+  const [openSessionModal, setOpenSessionModal] = useState(false);
 
   const fetchClients = async () => {
     try {
@@ -98,6 +100,13 @@ const TrainerDashboard = () => {
           >
             Create Program
           </Button>
+           <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => setOpenSessionModal(true)}
+          >
+            Start Training Session
+          </Button>
         </Box>
       </Box>
 
@@ -163,6 +172,10 @@ const TrainerDashboard = () => {
           console.log('Selected exercise:', exercise);
           //  FC-4
         }}
+      />
+      <StartSessionModal
+        open={openSessionModal}
+        onClose={() => setOpenSessionModal(false)}
       />
     </Container>
   );
