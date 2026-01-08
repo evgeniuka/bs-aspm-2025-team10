@@ -7,6 +7,8 @@ from models.client import Client
 from controllers.auth_controller import auth_bp
 from controllers.client_controller import client_bp
 from config import Config
+from models.exercise import Exercise
+from controllers.exercise_controller import exercise_bp
 
 def create_app():
     app = Flask(__name__)
@@ -19,6 +21,7 @@ def create_app():
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(client_bp)
+    app.register_blueprint(exercise_bp)
      
     # Create tables
     with app.app_context():

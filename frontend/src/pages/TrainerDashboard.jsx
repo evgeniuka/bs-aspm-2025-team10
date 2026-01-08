@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, Button, Grid, Alert, Snackbar } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-// import axios from 'axios';
 import { clientService } from '../services/clientService';
 import ClientCard from '../components/client/ClientCard';
 import ClientFormModal from '../components/client/ClientFormModal';
 import ConfirmDialog from '../components/client/ConfirmDialog';
+import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
 
 const TrainerDashboard = () => {
   const { user } = useAuth();
@@ -17,6 +17,7 @@ const TrainerDashboard = () => {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [clientToDelete, setClientToDelete] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [openExerciseLibrary, setOpenExerciseLibrary] = useState(false);
 
   const fetchClients = async () => {
     try {
@@ -72,11 +73,24 @@ const TrainerDashboard = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
         <Button variant="contained" onClick={() => setOpenModal(true)}>
           Add Client
         </Button>
+      </Box> */}
+
+      
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="outlined" onClick={() => setOpenExerciseLibrary(true)}>
+            Exercise Library
+          </Button>
+          <Button variant="contained" onClick={() => setOpenModal(true)}>
+            Add Client
+          </Button>
+        </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -132,6 +146,15 @@ const TrainerDashboard = () => {
         autoHideDuration={4000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         message={snackbar.message}
+      />
+
+      <ExerciseLibrary
+        open={openExerciseLibrary}
+        onClose={() => setOpenExerciseLibrary(false)}
+        onAddExercise={(exercise) => {
+          console.log('Selected exercise:', exercise);
+          //  FC-4
+        }}
       />
     </Container>
   );

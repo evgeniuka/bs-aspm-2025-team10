@@ -19,4 +19,9 @@ export const clientService = {
   updateClient: (id, data) => clientApi.put(`/clients/${id}`, data),
   deactivateClient: (id) => clientApi.post(`/clients/${id}/deactivate`),
   getMyClient: () => clientApi.get('/clients/my'), 
+  getExercises: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return clientApi.get(`/exercises${query ? '?' + query : ''}`);
+  }
 };
+
