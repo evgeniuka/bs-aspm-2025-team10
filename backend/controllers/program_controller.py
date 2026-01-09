@@ -5,7 +5,7 @@ from models.client import Client
 from models.exercise import Exercise
 from models.program import Program, ProgramExercise
 from utils.jwt_utils import token_required
-from models.exercise import Exercise
+
 
 program_bp = Blueprint('program', __name__, url_prefix='/api/programs')
 

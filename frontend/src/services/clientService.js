@@ -31,6 +31,9 @@ export const clientService = {
   },
   getProgramsByClient: (clientId) => {
   return clientApi.get(`/programs?client_id=${clientId}`);
-},
+  },
+  getSession: (sessionId) => {
+  return clientApi.get(`/sessions/${sessionId}`);
+  },
 };
 

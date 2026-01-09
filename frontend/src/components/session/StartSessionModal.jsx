@@ -4,6 +4,8 @@ import {
   Checkbox, FormControlLabel, Grid, Box, Typography, Button, Select, MenuItem, Alert
 } from '@mui/material';
 import { clientService } from '../../services/clientService';
+import { useNavigate } from 'react-router-dom';
+
 
 const StartSessionModal = ({ open, onClose }) => {
   const [clients, setClients] = useState([]);
@@ -12,6 +14,9 @@ const StartSessionModal = ({ open, onClose }) => {
   const [clientProgramOptions, setClientProgramOptions] = useState({}); // { clientId: [programs] }
   const [loadingPrograms, setLoadingPrograms] = useState({});
   const [errors, setErrors] = useState([]);
+  const [loading, setLoading] = useState(false); 
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (open) {
@@ -80,6 +85,7 @@ const StartSessionModal = ({ open, onClose }) => {
   };
 
   const handleSubmit = async () => {
+    setLoading(true); 
     const data = {
       client_ids: selectedClients,
       program_ids: selectedClients.map(clientId => clientPrograms[clientId])
@@ -87,12 +93,14 @@ const StartSessionModal = ({ open, onClose }) => {
 
     try {
       const res = await clientService.createSession(data);
-      // TODO:  /session/:id
+      navigate(`/session/${res.data.session_id}`);
       alert(`Session started! ID: ${res.data.session_id}`);
       onClose();
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Failed to start session';
       setErrors(Array.isArray(errorMsg) ? errorMsg : [errorMsg]);
+    } finally {
+      setLoading(false); 
     }
   };
 
@@ -175,13 +183,22 @@ const StartSessionModal = ({ open, onClose }) => {
 
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
           <Button onClick={onClose}>Cancel</Button>
-          <Button 
+          {/* <Button 
             variant="contained" 
             color="success"
             onClick={handleSubmit}
             disabled={!isFormValid()}
           >
             Start Training
+          </Button> */}
+
+          <Button 
+            variant="contained" 
+            color="success"
+            onClick={handleSubmit}
+            disabled={!isFormValid() || loading} 
+          >
+            {loading ? 'Preparing session...' : 'Start Training'}
           </Button>
         </Box>
       </DialogContent>

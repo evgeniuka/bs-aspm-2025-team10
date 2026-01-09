@@ -61,3 +61,32 @@ def create_session():
     
     db.session.commit()
     return jsonify({'message': 'Session created', 'session_id': session.id}), 201
+
+
+@session_bp.route('/<int:session_id>', methods=['GET'])
+@token_required
+def get_session(session_id):
+    session = Session.query.get_or_404(session_id)
+    if session.trainer_id != request.user_id:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    result = {
+        'id': session.id,
+        'trainer_id': session.trainer_id,
+        'start_time': session.start_time.isoformat(),
+        'status': session.status,
+        'clients': []
+    }
+    
+    for sc in session.clients:
+        result['clients'].append({
+            'client_id': sc.client_id,
+            'client_name': sc.client.name,
+            'program_id': sc.program_id,
+            'program_name': sc.program.name,
+            'current_exercise_index': sc.current_exercise_index,
+            'current_set': sc.current_set,
+            'status': sc.status
+        })
+    
+    return jsonify(result), 200
