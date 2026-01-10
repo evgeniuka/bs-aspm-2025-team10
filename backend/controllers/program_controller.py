@@ -78,4 +78,4 @@ def create_program():
         db.session.add(program_ex)
     
     db.session.commit()
-    return jsonify({'message': 'Program created', 'program_id': program.id}), 201
+    return jsonify({"message": "Program created", "program_id": program.id, "id": program.id}), 201
