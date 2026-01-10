@@ -2,18 +2,20 @@ import os
 import sys
 import pytest
 
+# Skip if no test DB configured
 if not os.getenv("DATABASE_URL_TEST"):
     pytest.skip("DATABASE_URL_TEST is not set", allow_module_level=True)
 
-# Force app to use the test database
+# App reads DATABASE_URL, so map it from DATABASE_URL_TEST
 os.environ["DATABASE_URL"] = os.environ["DATABASE_URL_TEST"]
 
 # Provide defaults so create_app won't crash if these are required
 os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret")
 
-# Make imports work regardless of where pytest is launched from
-BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+# Ensure backend/ is importable in CI and locally
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
