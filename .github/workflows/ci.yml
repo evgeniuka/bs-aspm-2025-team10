@@ -46,10 +46,20 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip wheel
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then python -m pip install -r requirements-dev.txt; fi
+
+          # гарантируем, что pytest существует
+          python -m pip install pytest pytest-cov psycopg2-binary
+
 
       - name: Run pytest (with coverage)
         working-directory: backend
         run: |
-          pytest -q --cov=. --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=70
+          python -m pytest -q \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-fail-under=70
