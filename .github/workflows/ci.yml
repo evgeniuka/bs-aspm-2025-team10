@@ -1,18 +1,25 @@
-name: Backend CI (pytest + postgres)
+name: Backend CI (pytest + postgres + coverage)
 
 on:
-  push:
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
   pull_request:
     paths:
       - "backend/**"
-      - ".github/workflows/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches: ["main", "develop"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -30,18 +37,26 @@ jobs:
           --health-retries=10
 
     env:
-      DATABASE_URL_TEST: postgresql+psycopg2://postgres:postgres@localhost:5432/fitcoach_test
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/fitcoach_test
+      # Use plain postgresql:// for maximum compatibility
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitcoach_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitcoach_test
       SECRET_KEY: test-secret
       JWT_SECRET_KEY: test-jwt-secret
+      FLASK_ENV: testing
+      PYTHONUNBUFFERED: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
 
       - name: Install dependencies
         working-directory: backend
@@ -50,9 +65,50 @@ jobs:
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then python -m pip install -r requirements-dev.txt; fi
 
-          # гарантируем, что pytest существует
-          python -m pip install pytest pytest-cov psycopg2-binary
+          # Ensure pytest + coverage exist
+          python -m pip install pytest pytest-cov
 
+          # DB driver used by SQLAlchemy + our environment
+          python -m pip install psycopg2-binary
+
+      - name: Wait for Postgres
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import os, time
+          import psycopg2
+          from urllib.parse import urlparse
+
+          url = os.environ["DATABASE_URL_TEST"]
+          u = urlparse(url)
+
+          for _ in range(30):
+              try:
+                  conn = psycopg2.connect(
+                      host=u.hostname,
+                      port=u.port,
+                      user=u.username,
+                      password=u.password,
+                      dbname=u.path.lstrip("/"),
+                  )
+                  conn.close()
+                  print("Postgres is ready.")
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("Postgres did not become ready in time.")
+          PY
+
+      - name: Sanity check imports
+        working-directory: backend
+        run: |
+          python -c "import app; print('Imported app OK:', app.__file__)"
+
+      - name: Collect tests (guard against misconfigured testpaths)
+        working-directory: backend
+        run: |
+          python -m pytest --collect-only -q
 
       - name: Run pytest (with coverage)
         working-directory: backend
@@ -62,9 +118,9 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-report=html
-            
+
       - name: Enforce coverage threshold (main/develop only)
-        if: github.event_name == 'push'
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
         working-directory: backend
         run: |
           python -m coverage report --fail-under=70
