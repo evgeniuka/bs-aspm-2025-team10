@@ -1,15 +1,12 @@
-name: Backend CI (pytest + postgres)
+name: Backend CI
 
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: ["**"]
-  workflow_dispatch:
-    branches: ["**"]
 
 jobs:
-  test:
+  backend-tests:
     runs-on: ubuntu-latest
 
     services:
@@ -18,21 +15,26 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: fitnessclub_test
+          POSTGRES_DB: fitcoach_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d fitnessclub_test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+          --health-cmd "pg_isready -U postgres -d fitcoach_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitnessclub_test
-      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitnessclub_test
-      SECRET_KEY: 123
-      PYTHONDONTWRITEBYTECODE: "1"
-      PYTHONUNBUFFERED: "1"
+      # Tests should use DATABASE_URL_TEST; we also set DATABASE_URL for apps that read only that.
+      DATABASE_URL_TEST: postgresql+psycopg2://postgres:postgres@localhost:5432/fitcoach_test
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/fitcoach_test
+
+      # Provide secrets so create_app() doesn't crash
+      SECRET_KEY: ci-secret
+      JWT_SECRET_KEY: ci-jwt-secret
+
+      # Coverage threshold (edit if you want stricter)
+      COV_FAIL_UNDER: "70"
 
     steps:
       - name: Checkout
@@ -42,66 +44,30 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
 
-      - name: Install system deps (psql + libpq)
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client libpq-dev gcc
-
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
-          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
+          python -m pip install -U pip
+          pip install -r backend/requirements.txt
           pip install pytest pytest-cov
 
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres -d fitnessclub_test && exit 0
-            sleep 1
-          done
-          echo "Postgres did not become ready in time" >&2
-          exit 1
-
-      - name: Smoke check DB connection
-        run: |
-          psql "postgresql://postgres:postgres@localhost:5432/fitnessclub_test" -c "SELECT 1;"
-
-      - name: Run pytest (junit + coverage)
+      - name: Run pytest (with reports)
         working-directory: backend
         run: |
-          mkdir -p reports/junit reports/coverage
-          pytest -q \
-            --junitxml=reports/junit/junit.xml \
+          mkdir -p reports
+          pytest -q -rs \
+            --junitxml=reports/junit.xml \
             --cov=. \
             --cov-report=term-missing \
-            --cov-report=xml:reports/coverage/coverage.xml \
-            --cov-report=html:reports/coverage/html \
-            --cov-fail-under=60
+            --cov-report=xml:reports/coverage.xml \
+            --cov-report=html:reports/coverage_html \
+            --cov-fail-under=${COV_FAIL_UNDER}
 
-      - name: Add summary (coverage)
-        working-directory: backend
-        run: |
-          python - <<'PY'
-          import xml.etree.ElementTree as ET
-          p = "reports/coverage/coverage.xml"
-          root = ET.parse(p).getroot()
-          rate = float(root.attrib.get("line-rate", 0.0)) * 100
-          with open("reports/coverage/coverage.txt", "w", encoding="utf-8") as f:
-            f.write(f"Coverage: {rate:.1f}%\n")
-          PY
-          echo "## Test Results" >> "$GITHUB_STEP_SUMMARY"
-          echo "- JUnit: backend/reports/junit/junit.xml" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Coverage: $(cat reports/coverage/coverage.txt)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload reports (Artifacts)
+      - name: Upload test reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
-          path: |
-            backend/reports/junit/junit.xml
-            backend/reports/coverage/coverage.xml
-            backend/reports/coverage/coverage.txt
-            backend/reports/coverage/html
+          path: backend/reports
