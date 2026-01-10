@@ -1,6 +1,7 @@
 name: Backend CI (pytest + postgres)
 
 on:
+  workflow_dispatch:
   push:
     branches: ["**"]
   pull_request:
@@ -36,6 +37,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check backend folder
+        id: backend
+        run: |
+          if [ -d backend ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -48,11 +59,13 @@ jobs:
           sudo apt-get install -y postgresql-client libpq-dev gcc
 
       - name: Install Python deps
+        if: steps.backend.outputs.exists == 'true'
         run: |
           python -m pip install --upgrade pip
           if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
           if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
           pip install pytest pytest-cov
+
 
       - name: Wait for Postgres
         run: |
@@ -67,8 +80,14 @@ jobs:
         run: |
           psql "postgresql://postgres:postgres@localhost:5432/fitnessclub_test" -c "SELECT 1;"
 
-      - name: Run pytest (junit + coverage)
-        working-directory: backend
+      - name: Install Python deps
+        if: steps.backend.outputs.exists == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
+          pip install pytest pytest-cov
+
         run: |
           mkdir -p reports/junit reports/coverage
           pytest -q \
@@ -103,3 +122,8 @@ jobs:
             backend/reports/coverage/coverage.xml
             backend/reports/coverage/coverage.txt
             backend/reports/coverage/html
+
+      - name: Skip (backend missing)
+        if: steps.backend.outputs.exists != 'true'
+        run: echo "backend/ not found on this branch -> skipping tests"
+
