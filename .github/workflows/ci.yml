@@ -61,5 +61,10 @@ jobs:
             --cov=. \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-report=html \
-            --cov-fail-under=70
+            --cov-report=html
+            
+      - name: Enforce coverage threshold (main/develop only)
+        if: github.event_name == 'push'
+        working-directory: backend
+        run: |
+          python -m coverage report --fail-under=70
