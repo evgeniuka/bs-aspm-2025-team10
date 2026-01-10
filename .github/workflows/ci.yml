@@ -3,13 +3,7 @@ name: Backend CI (pytest + postgres)
 
 on:
   push:
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
   pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
 
 jobs:
   test:
