@@ -7,11 +7,9 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(BACKEND_ROOT))
 
-database_url = os.environ.get("DATABASE_URL_TEST")
+database_url = os.environ.get("DATABASE_URL")
 if not database_url:
-    pytest.skip("DATABASE_URL_TEST is not set", allow_module_level=True)
-
-os.environ["DATABASE_URL"] = database_url
+    pytest.fail("DATABASE_URL is not set")
 
 from models import db
 from models.user import User
@@ -82,6 +80,33 @@ def test_wrong_role_returns_403(client, app):
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
+
+    assert response.status_code == 403
+    data = response.get_json()
+    assert data["error"] == "Insufficient permissions"
+
+
+def test_invalid_authorization_format_returns_401(client, app):
+    response = client.get("/api/clients", headers={"Authorization": "Bearer"})
+
+    assert response.status_code == 401
+    data = response.get_json()
+    assert data["error"] == "Invalid token format"
+
+
+def test_invalid_token_returns_401(client, app):
+    response = client.get("/api/clients", headers={"Authorization": "Bearer invalid.token.value"})
+
+    assert response.status_code == 401
+    data = response.get_json()
+    assert data["error"] == "Token is invalid or expired"
+
+
+def test_trainer_cannot_access_trainee_client_profile(client, app):
+    trainer = _create_user("trainer.profile.block@example.com", "trainer", full_name="Trainer Block")
+    headers = _auth_headers(trainer)
+
+    response = client.get("/api/clients/my", headers=headers)
 
     assert response.status_code == 403
     data = response.get_json()
