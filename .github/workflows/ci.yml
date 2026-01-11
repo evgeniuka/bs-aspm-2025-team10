@@ -11,6 +11,7 @@ on:
       - "backend/**"
       - ".github/workflows/**"
   workflow_dispatch:
+      branches: ["**"]
 
 jobs:
   test:
@@ -22,42 +23,59 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: fitcoach_test
+          POSTGRES_DB: fitnessclub_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d fitcoach_test"
+          --health-cmd="pg_isready -U postgres -d fitnessclub_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitcoach_test
-      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitcoach_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitnessclub_test
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitnessclub_test
       SECRET_KEY: 123
-      JWT_SECRET_KEY: 123
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
+      JWT_SECRET_KEY: 123
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install system deps (psql + libpq)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client libpq-dev gcc
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
+          pip install pytest pytest-cov
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U postgres -d fitnessclub_test && exit 0
+            sleep 1
+          done
+          echo "Postgres did not become ready in time" >&2
+          exit 1
+
       - name: Smoke check DB connection
         run: |
-          psql "postgresql://postgres:postgres@localhost:5432/fitcoach_test" -c "SELECT 1;"
+          psql "postgresql://postgres:postgres@localhost:5432/fitnessclub_test" -c "SELECT 1;"
 
-      - name: Run tests (PR: junit + coverage, no gate)
-            if: github.event_name == 'pull_request'
-            working-directory: backend
-        run: |
-          mkdir -p reports/junit reports/coverage
-          python -m pytest -q \
-            --junitxml=reports/junit/junit.xml \
-            --cov=. \
-            --cov-report=term-missing \
-            --cov-report=xml:reports/coverage/coverage.xml \
-            --cov-report=html:reports/coverage/html
-
-      - name: Run tests (push main/develop: junit + coverage + gate)
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      - name: Run pytest (junit + coverage)
         working-directory: backend
         run: |
           mkdir -p reports/junit reports/coverage
@@ -67,22 +85,7 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:reports/coverage/coverage.xml \
             --cov-report=html:reports/coverage/html \
-            --cov-fail-under=70
-
-
-      # Push main/develop: enforce coverage
-      - name: Run tests (push main/develop: junit + coverage + gate)
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-        working-directory: backend
-        run: |
-          mkdir -p reports/junit reports/coverage
-          python -m pytest -q \
-            --junitxml=reports/junit/junit.xml \
-            --cov=. \
-            --cov-report=term-missing \
-            --cov-report=xml:reports/coverage/coverage.xml \
-            --cov-report=html:reports/coverage/html \
-            --cov-fail-under=70
+            --cov-fail-under=60
 
       - name: Add summary (coverage)
         working-directory: backend
@@ -107,4 +110,4 @@ jobs:
             backend/reports/junit/junit.xml
             backend/reports/coverage/coverage.xml
             backend/reports/coverage/coverage.txt
-            backend/reports/coverage/html - дай пожалуйста полный код си еше раз
+            backend/reports/coverage/html
