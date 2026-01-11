@@ -34,43 +34,6 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitcoach_test
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitcoach_test
-      SECRET_KEY: 123
-      JWT_SECRET_KEY: 123
-      PYTHONDONTWRITEBYTECODE: "1"
-      PYTHONUNBUFFERED: "1"
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-dev.txt
-
-      - name: Install system deps (psql + libpq)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client libpq-dev gcc
-
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f backend/requirements.txt ]; then python -m pip install -r backend/requirements.txt; fi
-          if [ -f backend/requirements-dev.txt ]; then python -m pip install -r backend/requirements-dev.txt; fi
-          python -m pip install pytest pytest-cov
-
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres -d fitcoach_test && exit 0
-            sleep 1
-          done
-          echo "Postgres did not become ready in time" >&2
-          exit 1
-
-      - name
+      SECRET_KEY: "123"
+      JWT_SECRET_KEY: "123"
+      PYTH
