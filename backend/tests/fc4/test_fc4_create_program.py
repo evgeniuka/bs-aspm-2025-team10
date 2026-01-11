@@ -91,11 +91,16 @@ def build_exercises_payload(exercise_ids, overrides=None):
     return payload
 
 
+def generate_auth_token(app, user_id, role):
+    with app.app_context():
+        return generate_token(user_id, role)
+
+
 def test_create_program_success_persists(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=5)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     payload = {
         'name': 'Strength Builder',
@@ -196,7 +201,7 @@ def test_create_program_validation_missing_name(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=5)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
@@ -217,7 +222,7 @@ def test_create_program_validation_missing_name(app, client):
 def test_create_program_validation_missing_client(app, client):
     trainer_id, role = create_trainer(app)
     exercise_ids = create_exercises(app, count=5)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
@@ -238,7 +243,7 @@ def test_create_program_validation_exercises_too_few(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=4)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
@@ -259,7 +264,7 @@ def test_create_program_validation_exercises_too_few(app, client):
 def test_create_program_validation_exercises_too_many(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
@@ -281,7 +286,7 @@ def test_create_program_validation_invalid_exercise_values(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=5)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
     exercises = build_exercises_payload(exercise_ids)
     exercises[0].update({
         'sets': 0,
@@ -313,7 +318,7 @@ def test_create_program_validation_invalid_exercise_structure(app, client):
     trainer_id, role = create_trainer(app)
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=3)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
     exercises = build_exercises_payload(exercise_ids)
     exercises.append({'sets': 3, 'reps': 10, 'weight_kg': 20, 'rest_seconds': 60})
     exercises.append({
@@ -346,7 +351,7 @@ def test_create_program_client_not_owned_returns_404(app, client):
     other_trainer_id, _ = create_trainer(app, email='trainer2@example.com')
     client_id = create_client_record(app, other_trainer_id, name='Other Client')
     exercise_ids = create_exercises(app, count=5)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
@@ -367,7 +372,7 @@ def test_create_program_invalid_exercise_id_returns_400(app, client):
     client_id = create_client_record(app, trainer_id)
     exercise_ids = create_exercises(app, count=4)
     exercise_ids.append(9999)
-    token = generate_token(trainer_id, role)
+    token = generate_auth_token(app, trainer_id, role)
 
     response = client.post(
         '/api/programs',
