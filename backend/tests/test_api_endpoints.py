@@ -18,12 +18,12 @@ def create_user(email, role="trainer", is_active=True):
     user.set_password("password123")
     db.session.add(user)
     db.session.commit()
-    return user
+    return user.id
 
 
-def auth_headers(app, user):
+def auth_headers(app, user_id, role):
     with app.app_context():
-        token = generate_token(user.id, user.role)
+        token = generate_token(user_id, role)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -38,7 +38,7 @@ def create_client(trainer_id, user_id=None, name="Client Name"):
     )
     db.session.add(client)
     db.session.commit()
-    return client
+    return client.id
 
 
 def create_exercise(name):
@@ -51,7 +51,7 @@ def create_exercise(name):
     )
     db.session.add(exercise)
     db.session.commit()
-    return exercise
+    return exercise.id
 
 
 def test_auth_register_login_and_me(client, app):
@@ -125,18 +125,20 @@ def test_auth_register_duplicate_email(client, app):
 
 def test_auth_login_error_paths(client, app):
     with app.app_context():
-        active_user = create_user("active@example.com")
-        inactive_user = create_user("inactive@example.com", is_active=False)
+        active_user_id = create_user("active@example.com")
+        inactive_user_id = create_user("inactive@example.com", is_active=False)
+        active_email = User.query.get(active_user_id).email
+        inactive_email = User.query.get(inactive_user_id).email
 
     response = client.post(
         "/api/auth/login",
-        json={"email": active_user.email, "password": "wrongpass"},
+        json={"email": active_email, "password": "wrongpass"},
     )
     assert response.status_code == 401
 
     response = client.post(
         "/api/auth/login",
-        json={"email": inactive_user.email, "password": "password123"},
+        json={"email": inactive_email, "password": "password123"},
     )
     assert response.status_code == 403
 
@@ -151,24 +153,28 @@ def test_auth_me_user_not_found(client, app):
 
 def test_auth_logout(client, app):
     with app.app_context():
-        user = create_user("logout@example.com")
-    response = client.post("/api/auth/logout", headers=auth_headers(app, user))
+        user_id = create_user("logout@example.com")
+    response = client.post(
+        "/api/auth/logout", headers=auth_headers(app, user_id, "trainer")
+    )
     assert response.status_code == 200
 
 
 def test_client_crud_and_my_client(client, app):
     with app.app_context():
-        trainer = create_user("trainer@example.com")
-        trainee = create_user("trainee@example.com", role="trainee")
-        linked_client = create_client(trainer.id, user_id=trainee.id)
+        trainer_id = create_user("trainer@example.com")
+        trainee_id = create_user("trainee@example.com", role="trainee")
+        linked_client_id = create_client(trainer_id, user_id=trainee_id)
 
-    response = client.get("/api/clients", headers=auth_headers(app, trainer))
+    response = client.get(
+        "/api/clients", headers=auth_headers(app, trainer_id, "trainer")
+    )
     assert response.status_code == 200
-    assert any(item["id"] == linked_client.id for item in response.get_json())
+    assert any(item["id"] == linked_client_id for item in response.get_json())
 
     create_response = client.post(
         "/api/clients",
-        headers=auth_headers(app, trainer),
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={
             "name": "New Client",
             "age": 35,
@@ -180,7 +186,7 @@ def test_client_crud_and_my_client(client, app):
 
     invalid_response = client.post(
         "/api/clients",
-        headers=auth_headers(app, trainer),
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={
             "name": "A",
             "age": 10,
@@ -191,54 +197,56 @@ def test_client_crud_and_my_client(client, app):
     assert invalid_response.status_code == 400
 
     update_response = client.put(
-        f"/api/clients/{linked_client.id}",
-        headers=auth_headers(app, trainer),
+        f"/api/clients/{linked_client_id}",
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={"age": 10},
     )
     assert update_response.status_code == 400
 
     deactivate_response = client.post(
-        f"/api/clients/{linked_client.id}/deactivate",
-        headers=auth_headers(app, trainer),
+        f"/api/clients/{linked_client_id}/deactivate",
+        headers=auth_headers(app, trainer_id, "trainer"),
     )
     assert deactivate_response.status_code == 200
     with app.app_context():
-        refreshed = Client.query.get(linked_client.id)
+        refreshed = Client.query.get(linked_client_id)
         assert refreshed.active is False
 
     my_client_response = client.get(
-        "/api/clients/my", headers=auth_headers(app, trainee)
+        "/api/clients/my", headers=auth_headers(app, trainee_id, "trainee")
     )
     assert my_client_response.status_code == 404
 
 
 def test_client_my_client_happy_path(client, app):
     with app.app_context():
-        trainer = create_user("trainer2@example.com")
-        trainee = create_user("trainee2@example.com", role="trainee")
-        client_profile = create_client(trainer.id, user_id=trainee.id)
+        trainer_id = create_user("trainer2@example.com")
+        trainee_id = create_user("trainee2@example.com", role="trainee")
+        client_profile_id = create_client(trainer_id, user_id=trainee_id)
 
-    response = client.get("/api/clients/my", headers=auth_headers(app, trainee))
+    response = client.get(
+        "/api/clients/my", headers=auth_headers(app, trainee_id, "trainee")
+    )
     assert response.status_code == 200
-    assert response.get_json()["id"] == client_profile.id
+    assert response.get_json()["id"] == client_profile_id
 
 
 def test_program_create_and_get(client, app):
     with app.app_context():
-        trainer = create_user("prog-trainer@example.com")
-        other_trainer = create_user("other-trainer@example.com")
-        client_profile = create_client(trainer.id)
-        exercises = [create_exercise(f"Exercise {i}") for i in range(5)]
+        trainer_id = create_user("prog-trainer@example.com")
+        other_trainer_id = create_user("other-trainer@example.com")
+        client_profile_id = create_client(trainer_id)
+        exercise_ids = [create_exercise(f"Exercise {i}") for i in range(5)]
 
     validation_response = client.post(
         "/api/programs",
-        headers=auth_headers(app, trainer),
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={
             "name": "Short Program",
-            "client_id": client_profile.id,
+            "client_id": client_profile_id,
             "exercises": [
                 {
-                    "exercise_id": exercises[0].id,
+                    "exercise_id": exercise_ids[0],
                     "sets": 3,
                     "reps": 10,
                     "weight_kg": 20,
@@ -251,13 +259,13 @@ def test_program_create_and_get(client, app):
 
     not_owned_response = client.post(
         "/api/programs",
-        headers=auth_headers(app, other_trainer),
+        headers=auth_headers(app, other_trainer_id, "trainer"),
         json={
             "name": "Program",
-            "client_id": client_profile.id,
+            "client_id": client_profile_id,
             "exercises": [
                 {
-                    "exercise_id": exercises[0].id,
+                    "exercise_id": exercise_ids[0],
                     "sets": 3,
                     "reps": 10,
                     "weight_kg": 20,
@@ -271,10 +279,10 @@ def test_program_create_and_get(client, app):
 
     missing_exercise_response = client.post(
         "/api/programs",
-        headers=auth_headers(app, trainer),
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={
             "name": "Program",
-            "client_id": client_profile.id,
+            "client_id": client_profile_id,
             "exercises": [
                 {
                     "exercise_id": 9999,
@@ -291,19 +299,19 @@ def test_program_create_and_get(client, app):
 
     create_response = client.post(
         "/api/programs",
-        headers=auth_headers(app, trainer),
+        headers=auth_headers(app, trainer_id, "trainer"),
         json={
             "name": "Strength Program",
-            "client_id": client_profile.id,
+            "client_id": client_profile_id,
             "exercises": [
                 {
-                    "exercise_id": exercise.id,
+                    "exercise_id": exercise_id,
                     "sets": 3,
                     "reps": 10,
                     "weight_kg": 20,
                     "rest_seconds": 60,
                 }
-                for exercise in exercises
+                for exercise_id in exercise_ids
             ],
         },
     )
@@ -314,18 +322,19 @@ def test_program_create_and_get(client, app):
         assert ProgramExercise.query.count() == 5
 
     missing_client_id_response = client.get(
-        "/api/programs", headers=auth_headers(app, trainer)
+        "/api/programs", headers=auth_headers(app, trainer_id, "trainer")
     )
     assert missing_client_id_response.status_code == 400
 
     not_found_response = client.get(
-        "/api/programs?client_id=9999", headers=auth_headers(app, trainer)
+        "/api/programs?client_id=9999",
+        headers=auth_headers(app, trainer_id, "trainer"),
     )
     assert not_found_response.status_code == 404
 
     get_response = client.get(
-        f"/api/programs?client_id={client_profile.id}",
-        headers=auth_headers(app, trainer),
+        f"/api/programs?client_id={client_profile_id}",
+        headers=auth_headers(app, trainer_id, "trainer"),
     )
     assert get_response.status_code == 200
     assert get_response.get_json()[0]["name"] == "Strength Program"
@@ -335,8 +344,8 @@ def test_exercise_filters(client, app):
     with app.app_context():
         create_exercise("Bench Press")
         create_exercise("Push Up")
-        create_exercise("Deadlift")
-        exercise = Exercise.query.filter_by(name="Deadlift").first()
+        deadlift_id = create_exercise("Deadlift")
+        exercise = Exercise.query.get(deadlift_id)
         exercise.category = "lower_body"
         exercise.difficulty = "advanced"
         db.session.commit()
