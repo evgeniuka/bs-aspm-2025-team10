@@ -3,15 +3,13 @@ name: Backend CI (pytest + postgres)
 on:
   pull_request:
     paths:
-      - backend/**
-      - .github/workflows/**
+      - "backend/**"
+      - ".github/workflows/**"
   push:
-    branches:
-      - main
-      - develop
+    branches: ["main", "develop"]
     paths:
-      - backend/**
-      - .github/workflows/**
+      - "backend/**"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 jobs:
@@ -36,49 +34,19 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fitcoach_test
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/fitcoach_test
-      SECRET_KEY: "123"
-      JWT_SECRET_KEY: "123"
+      SECRET_KEY: 123
+      JWT_SECRET_KEY: 123
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Install system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client libpq-dev gcc
-
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r backend/requirements.txt
-          if [ -f backend/requirements-dev.txt ]; then python -m pip install -r backend/requirements-dev.txt; fi
-          python -m pip install pytest pytest-cov
-
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres -d fitcoach_test && exit 0
-            sleep 1
-          done
-          echo "Postgres did not become ready in time" >&2
-          exit 1
-
       - name: Smoke check DB connection
         run: |
           psql "postgresql://postgres:postgres@localhost:5432/fitcoach_test" -c "SELECT 1;"
 
-      - name: Run tests for PR
-        if: github.event_name == 'pull_request'
-        working-directory: backend
+      - name: Run tests (PR: junit + coverage, no gate)
+            if: github.event_name == 'pull_request'
+            working-directory: backend
         run: |
           mkdir -p reports/junit reports/coverage
           python -m pytest -q \
@@ -88,7 +56,7 @@ jobs:
             --cov-report=xml:reports/coverage/coverage.xml \
             --cov-report=html:reports/coverage/html
 
-      - name: Run tests for push main develop
+      - name: Run tests (push main/develop: junit + coverage + gate)
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         working-directory: backend
         run: |
@@ -101,7 +69,22 @@ jobs:
             --cov-report=html:reports/coverage/html \
             --cov-fail-under=70
 
-      - name: Add summary
+
+      # Push main/develop: enforce coverage
+      - name: Run tests (push main/develop: junit + coverage + gate)
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        working-directory: backend
+        run: |
+          mkdir -p reports/junit reports/coverage
+          python -m pytest -q \
+            --junitxml=reports/junit/junit.xml \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml:reports/coverage/coverage.xml \
+            --cov-report=html:reports/coverage/html \
+            --cov-fail-under=70
+
+      - name: Add summary (coverage)
         working-directory: backend
         run: |
           python - <<'PY'
@@ -116,8 +99,12 @@ jobs:
           echo "- JUnit: backend/reports/junit/junit.xml" >> "$GITHUB_STEP_SUMMARY"
           echo "- Coverage: $(cat reports/coverage/coverage.txt)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload reports
+      - name: Upload reports (Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-reports
-          path: backend/reports
+          path: |
+            backend/reports/junit/junit.xml
+            backend/reports/coverage/coverage.xml
+            backend/reports/coverage/coverage.txt
+            backend/reports/coverage/html - дай пожалуйста полный код си еше раз
