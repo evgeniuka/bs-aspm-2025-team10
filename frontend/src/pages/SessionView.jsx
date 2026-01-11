@@ -49,7 +49,7 @@ const SessionView = () => {
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3 }}>
         {session.clients.map(client => (
-          <Box key={client.client_id} sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+          <Box key={client.id} sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
             <Typography variant="h6">{client.client_name}</Typography>
             <Typography variant="body2">Program: {client.program_name}</Typography>
             <Typography variant="body2">Status: {client.status}</Typography>

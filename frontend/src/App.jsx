@@ -6,6 +6,7 @@ import TrainerDashboard from './pages/TrainerDashboard';
 import TraineeDashboard from './pages/TraineeDashboard';
 import ProgramBuilder from './pages/ProgramBuilder';
 import SessionView from './pages/SessionView';
+import SplitScreenView from './pages/SplitScreenView';
 import Navbar from './components/Navbar';
 
 
@@ -49,7 +50,8 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
 
-        <Route path="/session/:id" element={<SessionView />} />
+        {/* <Route path="/session/:id" element={<SessionView />} /> */}
+        <Route path="/session/:id" element={<SplitScreenView />} />
 
       </Routes>
     </>

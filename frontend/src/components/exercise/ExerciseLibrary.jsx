@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, 
   TextField, Chip, Select, MenuItem, InputLabel, FormControl,
   Grid, Box, Typography, Button, IconButton
 } from '@mui/material';
-import debounce from 'lodash.debounce';
 import ExerciseCard from './ExerciseCard';
 import { clientService } from '../../services/clientService';
 
@@ -25,28 +24,34 @@ const difficulties = [
 ];
 
 const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
-  console.log('ExerciseLibrary render', { open });
   const [exercises, setExercises] = useState([]);
   const [filteredExercises, setFilteredExercises] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-   useEffect(() => {
+  // ✅ Загружаем упражнения только при открытии модалки
+  useEffect(() => {
     if (open) {
-    console.log('Fetching exercises...');
-    clientService.getExercises().then(res => {
-      console.log('Exercises loaded:', res.data);
-      setExercises(res.data);
-      setFilteredExercises(res.data);
-    }).catch(err => {
-      console.error('Error fetching exercises:', err);
-    });
-  }
+      setLoading(true);
+      clientService.getExercises()
+        .then(res => {
+          setExercises(res.data);
+          setFilteredExercises(res.data);
+        })
+        .catch(err => {
+          console.error('Error fetching exercises:', err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
   }, [open]);
 
-  const applyFilters = useCallback(debounce(() => {
+  // ✅ Применяем фильтры при изменении search, category, difficulty
+  useEffect(() => {
     let result = exercises;
     
     if (search) {
@@ -63,23 +68,23 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
     }
     
     setFilteredExercises(result);
-  }, 300), [exercises, search, category, difficulty]);
+  }, [exercises, search, category, difficulty]); // ✅ Убрали applyFilters из зависимостей
 
-  useEffect(() => {
-    applyFilters();
-  }, [search, category, difficulty, applyFilters]);
+  const handleAdd = (exercise) => {
+    if (!selectedExercises.some(ex => ex.id === exercise.id)) {
+      setSelectedExercises(prev => [...prev, exercise]);
+    }
+  };
 
-//   const handleAdd = (exercise) => {
-//     onAddExercise(exercise);
-//     onClose();
-//   };
+  const handleRemove = (exerciseId) => {
+    setSelectedExercises(prev => prev.filter(e => e.id !== exerciseId));
+  };
 
-    const handleAdd = (exercise) => {
-        if (!selectedExercises.some(ex => ex.id === exercise.id)) {
-            setSelectedExercises(prev => [...prev, exercise]);
-        }
-    };
-
+  const handleConfirm = () => {
+    onAddExercise(selectedExercises);
+    setSelectedExercises([]); // ✅ Очистим выбранные после подтверждения
+    onClose();
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -116,54 +121,51 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
           </FormControl>
         </Box>
 
+        {/* Selected exercises */}
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">
-                Selected ({selectedExercises.length})
-            </Typography>
-            {selectedExercises.length > 0 && (
-                <Button 
-                  variant="contained" 
-                  onClick={() => {
-                    onAddExercise(selectedExercises);
-                    onClose(); 
-                  }}
+          <Typography variant="h6">
+            Selected ({selectedExercises.length})
+          </Typography>
+          {selectedExercises.length > 0 && (
+            <Button 
+              variant="contained" 
+              onClick={handleConfirm}
+            >
+              Confirm ({selectedExercises.length})
+            </Button>
+          )}
+        </Box>
+
+        {selectedExercises.length > 0 && (
+          <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #ddd' }}>
+            {selectedExercises.map(ex => (
+              <Box 
+                key={ex.id} 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  p: 1, 
+                  mb: 1, 
+                  border: '1px solid #ddd', 
+                  borderRadius: 1 
+                }}
+              >
+                <Typography variant="body1">{ex.name}</Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleRemove(ex.id)}
                 >
-                Confirm
-                </Button>
-            )}
-            </Box>
+                  ×
+                </IconButton>
+              </Box>
+            ))}
+          </Box>
+        )}
 
-            {selectedExercises.length > 0 && (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                {selectedExercises.map(ex => (
-                <Box 
-                    key={ex.id} 
-                    sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    p: 1, 
-                    mb: 1, 
-                    border: '1px solid #ddd', 
-                    borderRadius: 1 
-                    }}
-                >
-                    <Typography variant="body1">{ex.name}</Typography>
-                    <IconButton 
-                    size="small" 
-                    onClick={() => {
-                        setSelectedExercises(prev => prev.filter(e => e.id !== ex.id));
-                    }}
-                    >
-                    ×
-                    </IconButton>
-                </Box>
-                ))}
-            </Box>
-            )}
-
-
-        {filteredExercises.length === 0 ? (
+        {loading ? (
+          <Typography>Loading exercises...</Typography>
+        ) : filteredExercises.length === 0 ? (
           <Typography>No exercises found. Try different filters.</Typography>
         ) : (
           <Grid container spacing={2}>

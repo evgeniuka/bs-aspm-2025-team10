@@ -26,14 +26,23 @@ export const clientService = {
   createProgram: (data) => {
     return clientApi.post('/programs', data);
   },
-  createSession: (data) => {
+  startSession: (data) => {
     return clientApi.post('/sessions', data);
   },
   getProgramsByClient: (clientId) => {
-  return clientApi.get(`/programs?client_id=${clientId}`);
+    return clientApi.get(`/programs?client_id=${clientId}`);
   },
   getSession: (sessionId) => {
-  return clientApi.get(`/sessions/${sessionId}`);
+    console.log(`Fetching session ${sessionId}`); 
+    return clientApi.get(`/sessions/${sessionId}`).then(res => {
+      console.log('Session data received:', res.data); 
+      return res;
+    }).catch(err => {
+      console.error('Error fetching session:', err); 
+      throw err;
+    });
+  },
+  endSession: (sessionId) => {
+    return clientApi.post(`/sessions/${sessionId}/end`);
   },
 };
-

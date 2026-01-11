@@ -97,11 +97,24 @@ def get_programs():
     programs = Program.query.filter_by(client_id=client_id).all()
     result = []
     for p in programs:
-        exercises = ProgramExercise.query.filter_by(program_id=p.id).all()
+        program_exercises = ProgramExercise.query.filter_by(program_id=p.id).order_by(ProgramExercise.order).all()
         result.append({
             'id': p.id,
             'name': p.name,
-            'exercises': [{'id': ex.id, 'name': ex.exercise.name} for ex in exercises]  
+            'notes': p.notes,
+            'created_at': p.created_at.isoformat(),
+            'exercises': [{
+                'id': pe.id,
+                'exercise_id': pe.exercise_id,
+                'name': pe.exercise.name,
+                'category': pe.exercise.category,
+                'sets': pe.sets,
+                'reps': pe.reps,
+                'weight_kg': pe.weight_kg,
+                'rest_seconds': pe.rest_seconds,
+                'notes': pe.notes,
+                'order': pe.order
+            } for pe in program_exercises]
         })
     
     return jsonify(result), 200

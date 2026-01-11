@@ -6,12 +6,11 @@ import {
 import { clientService } from '../../services/clientService';
 import { useNavigate } from 'react-router-dom';
 
-
 const StartSessionModal = ({ open, onClose }) => {
   const [clients, setClients] = useState([]);
   const [selectedClients, setSelectedClients] = useState([]);
-  const [clientPrograms, setClientPrograms] = useState({}); // { clientId: programId }
-  const [clientProgramOptions, setClientProgramOptions] = useState({}); // { clientId: [programs] }
+  const [clientPrograms, setClientPrograms] = useState({}); 
+  const [clientProgramOptions, setClientProgramOptions] = useState({});
   const [loadingPrograms, setLoadingPrograms] = useState({});
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(false); 
@@ -84,23 +83,21 @@ const StartSessionModal = ({ open, onClose }) => {
     );
   };
 
-  const handleSubmit = async () => {
-    setLoading(true); 
-    const data = {
-      client_ids: selectedClients,
-      program_ids: selectedClients.map(clientId => clientPrograms[clientId])
-    };
-
+  const handleStart = async () => {
+    setLoading(true);
+    setErrors([]);
     try {
-      const res = await clientService.createSession(data);
-      navigate(`/session/${res.data.session_id}`);
-      alert(`Session started! ID: ${res.data.session_id}`);
-      onClose();
+      const res = await clientService.startSession({
+        client_ids: selectedClients,
+        program_ids: selectedClients.map(id => clientPrograms[id])
+      });
+      onClose(); 
+      navigate(`/session/${res.data.session_id}`); 
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Failed to start session';
       setErrors(Array.isArray(errorMsg) ? errorMsg : [errorMsg]);
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
@@ -160,7 +157,7 @@ const StartSessionModal = ({ open, onClose }) => {
                       <MenuItem value="">-- Select Program --</MenuItem>
                       {programs.map(prog => (
                         <MenuItem key={prog.id} value={prog.id}>
-                          {prog.name} ({prog.exercises.length} exercises)
+                          {prog.name} ({prog.exercises?.length || 0} exercises)
                         </MenuItem>
                       ))}
                     </Select>
@@ -183,22 +180,13 @@ const StartSessionModal = ({ open, onClose }) => {
 
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
           <Button onClick={onClose}>Cancel</Button>
-          {/* <Button 
-            variant="contained" 
-            color="success"
-            onClick={handleSubmit}
-            disabled={!isFormValid()}
-          >
-            Start Training
-          </Button> */}
-
           <Button 
             variant="contained" 
             color="success"
-            onClick={handleSubmit}
-            disabled={!isFormValid() || loading} 
+            onClick={handleStart}
+            disabled={!isFormValid() || loading}
           >
-            {loading ? 'Preparing session...' : 'Start Training'}
+            {loading ? 'Starting Session...' : 'Start Training Session'}
           </Button>
         </Box>
       </DialogContent>

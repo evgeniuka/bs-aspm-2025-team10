@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, TextField, FormControl, InputLabel, Select, MenuItem, Button, Grid, Alert } from '@mui/material';
+import { Box, Container, Typography, TextField, FormControl, InputLabel, Select, MenuItem, Button, Grid, Alert, Snackbar } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { clientService } from '../services/clientService';
 import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
 import ExerciseRowBuilder from '../components/program/ExerciseRowBuilder';
 import ConfirmDialog from '../components/client/ConfirmDialog'; 
+
 
 const ProgramBuilder = () => {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ const ProgramBuilder = () => {
   const [errors, setErrors] = useState([]);
   const [exerciseToRemove, setExerciseToRemove] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
     const isDirty = 
@@ -108,14 +110,28 @@ const ProgramBuilder = () => {
     };
 
     try {
-      await clientService.createProgram(data);
-      alert('Workout program created successfully!');
-      window.history.back();
+      const response = await clientService.createProgram(data);
+            setSnackbar({ 
+        open: true, 
+        message: `Program "${programData.name}" created successfully!`, 
+        severity: 'success' 
+      });
+      
+      setTimeout(() => {
+        navigate('/trainer/dashboard');
+      }, 1000);
+      
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Failed to save program';
       setErrors([errorMsg]);
+      setSnackbar({ 
+        open: true, 
+        message: errorMsg, 
+        severity: 'error' 
+      });
     }
   };
+
 
   const handleMoveUp = (index) => {
     if (index === 0) return;
@@ -250,7 +266,18 @@ const ProgramBuilder = () => {
         }}
         title="Remove Exercise"
         content="Are you sure you want to remove this exercise from the program?"
-      />     
+      />  
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+        
     </Container>
   );
 };
