@@ -24,6 +24,13 @@ def validate_program_data(data):
         errors.append('Maximum 20 exercises allowed')
     
     for ex in exercises:
+        if not isinstance(ex, dict):
+            errors.append('Exercise must be an object')
+            continue
+        if ex.get('exercise_id') is None:
+            errors.append('Exercise ID is required')
+        elif not isinstance(ex.get('exercise_id'), int):
+            errors.append('Exercise ID must be an integer')
         if not (1 <= ex.get('sets', 0) <= 10):
             errors.append(f'Sets must be between 1-10 for exercise')
         if not (1 <= ex.get('reps', 0) <= 50):
@@ -60,7 +67,7 @@ def create_program():
     db.session.flush() 
     
     for idx, ex_data in enumerate(data['exercises']):
-        exercise = Exercise.query.get(ex_data['exercise_id'])
+        exercise = db.session.get(Exercise, ex_data['exercise_id'])
         if not exercise:
             db.session.rollback()
             return jsonify({'error': f'Exercise ID {ex_data["exercise_id"]} not found'}), 400
