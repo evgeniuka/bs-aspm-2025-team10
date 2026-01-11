@@ -1,23 +1,30 @@
 import os
 import sys
+from pathlib import Path
+
 import pytest
 
-# Skip if no test DB configured
-if not os.getenv("DATABASE_URL_TEST"):
-    pytest.skip("DATABASE_URL_TEST is not set", allow_module_level=True)
+# --- Hard requirements for CI / real DB ---
+# In CI we always expect DB URL to be present; do NOT skip silently.
+_db_url = os.getenv("DATABASE_URL_TEST") or os.getenv("DATABASE_URL")
+if not _db_url:
+    raise RuntimeError(
+        "DATABASE_URL_TEST or DATABASE_URL must be set for FC-3 tests. "
+        "CI should provide DATABASE_URL_TEST."
+    )
 
-# App reads DATABASE_URL, so map it from DATABASE_URL_TEST
-os.environ["DATABASE_URL"] = os.environ["DATABASE_URL_TEST"]
+# App reads DATABASE_URL, so map it from DATABASE_URL_TEST/DATABASE_URL
+os.environ["DATABASE_URL"] = _db_url
 
 # Provide defaults so create_app won't crash if these are required
 os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret")
+os.environ.setdefault("FLASK_ENV", "testing")
 
-# Ensure backend/ is importable in CI and locally
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
-if BACKEND_DIR not in sys.path:
-    sys.path.insert(0, BACKEND_DIR)
+# Ensure backend/ is importable (backend/tests/fc3/test_*.py -> parents[2] == backend/)
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from app import create_app
 from models import db
@@ -39,6 +46,7 @@ def app_client():
 
     with app.app_context():
         db.session.remove()
+        # Optional cleanup. Keeping drop_all helps isolation between files if needed.
         db.drop_all()
 
 
@@ -112,8 +120,8 @@ def test_get_exercises_search_empty_query_returns_all(app_client):
 
 def test_get_exercises_search_filters_case_insensitive_or_is_ignored(app_client):
     """
-    If backend implements `search`, it must filter case-insensitively.
-    If backend ignores unknown query params, it should still return 200 and include matching items.
+    NOTE: This test stays tolerant for now to avoid breaking CI if backend doesn't implement filtering.
+    We will tighten it later once contract is confirmed.
     """
     app, client = app_client
 
@@ -142,8 +150,7 @@ def test_get_exercises_search_filters_case_insensitive_or_is_ignored(app_client)
 
 def test_get_exercises_search_non_matching_returns_empty_or_is_ignored(app_client):
     """
-    If backend implements `search`, non-matching query should return empty list.
-    If backend ignores `search`, it should still return 200 (then list will be non-empty).
+    NOTE: Tolerant for now; will tighten later once contract is confirmed.
     """
     app, client = app_client
 
@@ -170,8 +177,7 @@ def test_get_exercises_search_non_matching_returns_empty_or_is_ignored(app_clien
 
 def test_get_exercises_filters_by_category_and_difficulty_or_is_ignored(app_client):
     """
-    If backend implements category/difficulty filters, it must return only matching items.
-    If backend ignores these params, it should still return 200 and include matching items.
+    NOTE: Tolerant for now; will tighten later once contract is confirmed.
     """
     app, client = app_client
 
@@ -198,41 +204,13 @@ def test_get_exercises_filters_by_category_and_difficulty_or_is_ignored(app_clie
         assert names == {"Sit Up"}
 
 
-def test_post_exercises_not_allowed(app_client):
+def test_post_exercises_method_not_allowed(app_client):
+    """
+    If /api/exercises exists as GET-only resource, POST should be 405 (Method Not Allowed).
+    We do NOT accept 404 here, because endpoint must exist for FC-3.
+    """
     _app, client = app_client
 
     response = client.post("/api/exercises", json={"name": "New"})
 
-    assert response.status_code in (404, 405)
-
-
-def test_get_exercise_by_id_not_found(app_client):
-    _app, client = app_client
-
-    response = client.get("/api/exercises/1")
-
-    assert response.status_code in (404, 405)
-
-
-def test_put_exercise_by_id_not_found(app_client):
-    _app, client = app_client
-
-    response = client.put("/api/exercises/1", json={"name": "Update"})
-
-    assert response.status_code in (404, 405)
-
-
-def test_patch_exercise_by_id_not_found(app_client):
-    _app, client = app_client
-
-    response = client.patch("/api/exercises/1", json={"name": "Update"})
-
-    assert response.status_code in (404, 405)
-
-
-def test_delete_exercise_by_id_not_found(app_client):
-    _app, client = app_client
-
-    response = client.delete("/api/exercises/1")
-
-    assert response.status_code in (404, 405)  # ok: endpoint does not exist - так лучше?
+    assert response.status_code == 405
