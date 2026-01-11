@@ -66,8 +66,8 @@ def create_session():
 @session_bp.route('/<int:session_id>', methods=['GET'])
 @token_required
 def get_session(session_id):
-    session = Session.query.get_or_404(session_id)
-    if session.trainer_id != request.user_id:
+    session = db.session.get(Session, session_id)
+    if not session or session.trainer_id != request.user_id:
         return jsonify({'error': 'Session not found'}), 404
     
     result = {
