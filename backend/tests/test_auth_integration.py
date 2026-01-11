@@ -49,6 +49,8 @@ def test_login_success_returns_token_and_user(client, db_session):
     assert payload["user"]["id"] == user.id
     assert payload["user"]["email"] == user.email
     assert payload["user"]["role"] == user.role
+    db_session.refresh(user)
+    assert user.last_login is not None
 
 
 def test_me_requires_token(client):
@@ -78,3 +80,97 @@ def test_me_with_token_returns_user(client, db_session):
     assert payload["id"] == user.id
     assert payload["email"] == user.email
     assert payload["role"] == user.role
+
+
+def test_register_success_persists_user_and_hashes_password(client, db_session):
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "newuser@example.com",
+            "password": "StrongPass123",
+            "full_name": "New User",
+            "role": "trainee",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert "token" in payload
+    assert payload["user"]["email"] == "newuser@example.com"
+    assert payload["user"]["role"] == "trainee"
+
+    user = db_session.query(User).filter_by(email="newuser@example.com").first()
+    assert user is not None
+    assert user.password_hash != "StrongPass123"
+
+
+def test_register_missing_fields_returns_400(client):
+    response = client.post(
+        "/api/auth/register",
+        json={"email": "missing@example.com"},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["error"] == "Missing required fields"
+
+
+def test_me_with_invalid_token_returns_401(client):
+    response = client.get(
+        "/api/auth/me",
+        headers={"Authorization": "Bearer invalid.token.value"},
+    )
+
+    assert response.status_code == 401
+    payload = response.get_json()
+    assert payload["error"] == "Token is invalid or expired"
+
+
+def test_me_with_invalid_token_format_returns_401(client):
+    response = client.get(
+        "/api/auth/me",
+        headers={"Authorization": "Bearer"},
+    )
+
+    assert response.status_code == 401
+    payload = response.get_json()
+    assert payload["error"] == "Invalid token format"
+
+
+def test_me_with_deleted_user_returns_404(client, db_session):
+    user = create_test_user(db_session)
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    token = login_response.get_json()["token"]
+
+    db_session.delete(user)
+    db_session.commit()
+
+    response = client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 404
+    payload = response.get_json()
+    assert payload["error"] == "User not found"
+
+
+def test_logout_returns_success_message(client, db_session):
+    user = create_test_user(db_session)
+    login_response = client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    token = login_response.get_json()["token"]
+
+    response = client.post(
+        "/api/auth/logout",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["message"] == "Logged out successfully"

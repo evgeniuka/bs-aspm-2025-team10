@@ -82,7 +82,7 @@ def get_current_user():
     GET /api/auth/me
     Headers: { "Authorization": "Bearer <token>" }
     """
-    user = User.query.get(request.user_id)
+    user = db.session.get(User, request.user_id)
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
