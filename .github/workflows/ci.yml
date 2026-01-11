@@ -99,4 +99,25 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:reports/coverage/coverage.xml \
             --cov-report=html:reports/coverage/html \
-            --cov-fa
+            --cov-fail-under=70
+
+      - name: Add summary
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          p = "reports/coverage/coverage.xml"
+          root = ET.parse(p).getroot()
+          rate = float(root.attrib.get("line-rate", 0.0)) * 100
+          with open("reports/coverage/coverage.txt", "w", encoding="utf-8") as f:
+            f.write(f"Coverage: {rate:.1f}%\n")
+          PY
+          echo "## Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "- JUnit: backend/reports/junit/junit.xml" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Coverage: $(cat reports/coverage/coverage.txt)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/reports
