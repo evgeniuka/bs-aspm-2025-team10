@@ -25,7 +25,7 @@ def validate_session_data(data):
             errors.append(f'Client ID {client_id} not found')
     
     for program_id in data['program_ids']:
-        program = Program.query.get(program_id)
+        program = db.session.get(Program, program_id)
         if not program:
             errors.append(f'Program ID {program_id} not found')
     
