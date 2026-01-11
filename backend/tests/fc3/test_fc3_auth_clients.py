@@ -212,10 +212,11 @@ def test_update_client_rejects_invalid_age(app_client):
         )
         db.session.add(client_record)
         db.session.commit()
+        client_id = client_record.id
         headers = _auth_header(app, trainer)
 
     response = client.put(
-        f"/api/clients/{client_record.id}",
+        f"/api/clients/{client_id}",
         headers=headers,
         json={"age": 10},
     )
@@ -240,14 +241,15 @@ def test_deactivate_client_marks_inactive(app_client):
         )
         db.session.add(client_record)
         db.session.commit()
+        client_id = client_record.id
         headers = _auth_header(app, trainer)
 
-    response = client.post(f"/api/clients/{client_record.id}/deactivate", headers=headers)
+    response = client.post(f"/api/clients/{client_id}/deactivate", headers=headers)
 
     assert response.status_code == 200
     assert response.get_json() == {"message": "Client deactivated"}
     with app.app_context():
-        refreshed = Client.query.get(client_record.id)
+        refreshed = Client.query.get(client_id)
         assert refreshed.active is False
 
 
