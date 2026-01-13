@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 from models import db
 from models.client import Client
 from models.program import Program, ProgramExercise 
@@ -112,6 +113,7 @@ def end_session(session_id):
     session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
     
     session.status = 'completed'
+    session.end_time = datetime.utcnow()
     db.session.commit()
     
     return jsonify({'message': 'Session ended successfully'}), 200
