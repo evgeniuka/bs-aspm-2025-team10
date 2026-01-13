@@ -78,7 +78,7 @@ def test_create_session_persists_clients(client, app, trainer_token):
     assert isinstance(data["session_id"], int)
 
     with app.app_context():
-        session = Session.query.get(data["session_id"])
+        session = db.session.get(Session, data["session_id"])
         assert session is not None
         assert session.status == "active"
         session_clients = SessionClient.query.filter_by(session_id=session.id).all()
@@ -148,7 +148,7 @@ def test_end_session_updates_db(client, app, trainer_token):
     assert response.get_json()["message"] == "Session ended successfully"
 
     with app.app_context():
-        session = Session.query.get(session_id)
+        session = db.session.get(Session, session_id)
         assert session.status == "completed"
         assert session.end_time is not None
 
