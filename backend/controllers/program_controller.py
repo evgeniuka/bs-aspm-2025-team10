@@ -61,7 +61,7 @@ def create_program():
     db.session.flush() 
     
     for idx, ex_data in enumerate(data['exercises']):
-        exercise = Exercise.query.get(ex_data['exercise_id'])
+        exercise = db.session.get(Exercise, ex_data['exercise_id'])
         if not exercise:
             db.session.rollback()
             return jsonify({'error': f'Exercise ID {ex_data["exercise_id"]} not found'}), 400
