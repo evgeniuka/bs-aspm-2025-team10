@@ -169,7 +169,7 @@ def test_program_create_and_list(client, app, trainer_token):
         db.session.add(client_model)
         db.session.flush()
 
-        exercises = []
+        exercise_ids = []
         for idx in range(5):
             exercise = Exercise(
                 name=f"Exercise {idx}",
@@ -180,7 +180,7 @@ def test_program_create_and_list(client, app, trainer_token):
             )
             db.session.add(exercise)
             db.session.flush()
-            exercises.append(exercise)
+            exercise_ids.append(exercise.id)
 
         db.session.commit()
         client_id = client_model.id
@@ -191,13 +191,13 @@ def test_program_create_and_list(client, app, trainer_token):
         "notes": "Notes",
         "exercises": [
             {
-                "exercise_id": ex.id,
+                "exercise_id": exercise_id,
                 "sets": 3,
                 "reps": 10,
                 "weight_kg": 0,
                 "rest_seconds": 60,
             }
-            for ex in exercises
+            for exercise_id in exercise_ids
         ],
     }
 
