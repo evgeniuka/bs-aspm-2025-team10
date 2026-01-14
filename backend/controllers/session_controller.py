@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 from models import db
 from models.client import Client
 from models.program import Program, ProgramExercise 
@@ -24,7 +25,7 @@ def validate_session_data(data):
             errors.append(f'Client ID {client_id} not found')
     
     for program_id in data['program_ids']:
-        program = Program.query.get(program_id)
+        program = db.session.get(Program, program_id)
         if not program:
             errors.append(f'Program ID {program_id} not found')
     
@@ -112,6 +113,7 @@ def end_session(session_id):
     session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
     
     session.status = 'completed'
+    session.end_time = datetime.utcnow()
     db.session.commit()
     
     return jsonify({'message': 'Session ended successfully'}), 200
