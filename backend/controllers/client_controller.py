@@ -35,8 +35,6 @@ def create_client():
             return jsonify({'error': 'Goals must be at least 10 characters'}), 400
         
         active_count = Client.query.filter_by(trainer_id=trainer_id, active=True).count()
-        # if active_count >= 4:
-        #     return jsonify({'error': 'Cannot have more than 4 active clients'}), 409
         
         user_id = None
         if data.get('user_email'):

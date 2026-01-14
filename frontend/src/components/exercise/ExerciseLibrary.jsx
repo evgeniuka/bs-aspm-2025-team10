@@ -32,7 +32,6 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
   const [selectedExercises, setSelectedExercises] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Загружаем упражнения только при открытии модалки
   useEffect(() => {
     if (open) {
       setLoading(true);
@@ -50,8 +49,7 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
     }
   }, [open]);
 
-  // ✅ Применяем фильтры при изменении search, category, difficulty
-  useEffect(() => {
+   useEffect(() => {
     let result = exercises;
     
     if (search) {
@@ -68,7 +66,7 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
     }
     
     setFilteredExercises(result);
-  }, [exercises, search, category, difficulty]); // ✅ Убрали applyFilters из зависимостей
+  }, [exercises, search, category, difficulty]); 
 
   const handleAdd = (exercise) => {
     if (!selectedExercises.some(ex => ex.id === exercise.id)) {
@@ -82,7 +80,7 @@ const ExerciseLibrary = ({ open, onClose, onAddExercise }) => {
 
   const handleConfirm = () => {
     onAddExercise(selectedExercises);
-    setSelectedExercises([]); // ✅ Очистим выбранные после подтверждения
+    setSelectedExercises([]);
     onClose();
   };
 

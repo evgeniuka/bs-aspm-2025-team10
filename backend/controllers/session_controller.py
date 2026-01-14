@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from models import db
 from models.client import Client
 from models.program import Program, ProgramExercise 
 from models.session import Session, SessionClient
 from utils.jwt_utils import token_required
+from models.workout_log import WorkoutLog
+from sqlalchemy.orm.attributes import flag_modified
 
 session_bp = Blueprint('session', __name__, url_prefix='/api/sessions')
 
@@ -115,3 +117,87 @@ def end_session(session_id):
     db.session.commit()
     
     return jsonify({'message': 'Session ended successfully'}), 200
+
+@session_bp.route('/<int:session_id>/complete-set', methods=['POST'])
+@token_required
+def complete_set(session_id):
+    trainer_id = request.user_id
+    data = request.get_json()
+    
+    required_fields = ['client_id', 'exercise_id', 'set_number']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'{field} is required'}), 400
+    
+    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    session_client = SessionClient.query.filter_by(
+        session_id=session_id, 
+        client_id=data['client_id']
+    ).first_or_404()
+    
+    program_exercise = ProgramExercise.query.filter_by(
+        program_id=session_client.program_id,
+        exercise_id=data['exercise_id']
+    ).first()
+    
+    if not program_exercise:
+        return jsonify({'error': 'Exercise not found in program'}), 404
+    
+    workout_log = WorkoutLog(
+        session_id=session_id,
+        client_id=data['client_id'],
+        exercise_id=data['exercise_id'],
+        set_number=data['set_number'],
+        reps_completed=program_exercise.reps,
+        weight_kg=program_exercise.weight_kg
+    )
+    db.session.add(workout_log)
+    
+    current_set = session_client.current_set
+    total_sets = program_exercise.sets
+    
+    if current_set < total_sets:
+        session_client.current_set += 1
+        session_client.status = 'resting'
+        session_client.rest_time_remaining = program_exercise.rest_seconds
+    else:
+        if session_client.completed_exercises is None:
+            session_client.completed_exercises = []
+        
+        session_client.completed_exercises.append(data['exercise_id'])
+        flag_modified(session_client, 'completed_exercises')  
+        
+        session_client.current_exercise_index += 1
+        session_client.current_set = 1
+        session_client.rest_time_remaining = 0
+        
+        total_exercises = ProgramExercise.query.filter_by(program_id=session_client.program_id).count()
+        
+        if session_client.current_exercise_index >= total_exercises:
+            session_client.status = 'completed'
+        else:
+            session_client.status = 'ready'
+    
+    db.session.commit()
+    
+    updated_client_data = {
+        'current_exercise_index': session_client.current_exercise_index,
+        'current_set': session_client.current_set,
+        'status': session_client.status,
+        'rest_time_remaining': session_client.rest_time_remaining,
+        'completed_exercises': session_client.completed_exercises
+    }
+    
+    socketio = current_app.extensions.get('socketio')
+    if socketio:
+        socketio.emit('session_update', {
+            'session_id': session_id,
+            'client_id': data['client_id'],
+            'action': 'set_complete',
+            'updated_client_data': updated_client_data
+        }, room=f'session_{session_id}')
+    
+    return jsonify({
+        'message': 'Set marked as complete',
+        'updated_client': updated_client_data
+    }), 200

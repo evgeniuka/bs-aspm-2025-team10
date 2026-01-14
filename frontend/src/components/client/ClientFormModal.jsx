@@ -1,4 +1,3 @@
-// frontend/src/components/client/ClientFormModal.jsx
 import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,

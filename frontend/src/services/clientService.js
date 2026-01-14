@@ -45,4 +45,7 @@ export const clientService = {
   endSession: (sessionId) => {
     return clientApi.post(`/sessions/${sessionId}/end`);
   },
+  markSetComplete: (sessionId, data) => {
+    return clientApi.post(`/sessions/${sessionId}/complete-set`, data);
+  },
 };

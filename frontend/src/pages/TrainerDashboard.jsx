@@ -77,20 +77,9 @@ const TrainerDashboard = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
-        <Button variant="contained" onClick={() => setOpenModal(true)}>
-          Add Client
-        </Button>
-      </Box> */}
-
-      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* <Button variant="outlined" onClick={() => setOpenExerciseLibrary(true)}>
-            Exercise Library
-          </Button> */}
           <Button variant="contained" onClick={() => setOpenModal(true)}>
             Add Client
           </Button>

@@ -9,11 +9,6 @@ import SessionView from './pages/SessionView';
 import SplitScreenView from './pages/SplitScreenView';
 import Navbar from './components/Navbar';
 
-
-// const TrainerDashboard = () => <div style={{ padding: '20px' }}>🏋️ Trainer Dashboard</div>;
-// const TraineeDashboard = () => <div style={{ padding: '20px' }}>🏃 Trainee Dashboard</div>;
-
-
 function App() {
   return (
     <> 
@@ -49,8 +44,6 @@ function App() {
 
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
-
-        {/* <Route path="/session/:id" element={<SessionView />} /> */}
         <Route path="/session/:id" element={<SplitScreenView />} />
 
       </Routes>

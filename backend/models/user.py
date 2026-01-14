@@ -3,8 +3,6 @@ from . import db
 from datetime import datetime
 import bcrypt
 
-# db = SQLAlchemy()
-
 class User(db.Model):
     __tablename__ = 'users'
     

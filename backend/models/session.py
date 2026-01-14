@@ -1,5 +1,6 @@
 from . import db
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSON
 
 class Session(db.Model):
     __tablename__ = 'sessions'
@@ -21,8 +22,8 @@ class SessionClient(db.Model):
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
     current_exercise_index = db.Column(db.Integer, nullable=False, default=0)
     current_set = db.Column(db.Integer, nullable=False, default=1)
-    completed_exercises = db.Column(db.JSON, nullable=True)  
-    status = db.Column(db.Enum('ready', 'in_progress', 'completed', name='client_session_status'), nullable=False, default='ready')
+    completed_exercises = db.Column(db.JSON, default=list, nullable=False)  
+    status = db.Column(db.Enum('ready', 'in_progress', 'resting', 'completed', name='client_session_status'), nullable=False, default='ready')
     
     session = db.relationship('Session', back_populates='clients')
     client = db.relationship('Client')

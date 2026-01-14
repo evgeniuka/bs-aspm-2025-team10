@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, TextField, FormControl, InputLabel, Select, MenuItem, Button, Grid, Alert, Snackbar } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { clientService } from '../services/clientService';
 import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
@@ -9,6 +10,7 @@ import ConfirmDialog from '../components/client/ConfirmDialog';
 
 const ProgramBuilder = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [programData, setProgramData] = useState({
     name: '',

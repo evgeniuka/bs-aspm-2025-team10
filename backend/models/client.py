@@ -2,8 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 from . import db
 from datetime import datetime
 
-# db = SQLAlchemy()
-
 class Client(db.Model):
     __tablename__ = 'clients'
     
