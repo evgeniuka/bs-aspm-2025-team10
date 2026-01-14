@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models import db
 from models.exercise import Exercise
+from utils.validation import parse_exercise_filters
 
 exercise_bp = Blueprint('exercise', __name__, url_prefix='/api/exercises')
 
@@ -15,15 +16,11 @@ def get_exercises():
     """
     query = Exercise.query
     
-    search = request.args.get('search', '').strip()
+    search, category, difficulty = parse_exercise_filters(request.args)
     if search:
         query = query.filter(Exercise.name.ilike(f'%{search}%'))
-    
-    category = request.args.get('category')
     if category:
         query = query.filter_by(category=category)
-    
-    difficulty = request.args.get('difficulty')
     if difficulty:
         query = query.filter_by(difficulty=difficulty)
     

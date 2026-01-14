@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from models import db
 from models.user import User
 from utils.jwt_utils import generate_token, token_required
+from utils.validation import validate_login_payload, validate_register_payload
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
@@ -13,9 +14,10 @@ def login():
     Body: { "email": "trainer@example.com", "password": "password123" }
     """
     data = request.get_json()
-    
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'error': 'Email and password are required'}), 400
+
+    error = validate_login_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
     
     user = User.query.filter_by(email=data['email']).first()
     
@@ -45,16 +47,10 @@ def register():
     Body: { "email": "...", "password": "...", "full_name": "...", "role": "trainer|trainee" }
     """
     data = request.get_json()
-    
-    required_fields = ['email', 'password', 'full_name', 'role']
-    if not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing required fields'}), 400
-    
-    if data['role'] not in ['trainer', 'trainee']:
-        return jsonify({'error': 'Invalid role. Must be trainer or trainee'}), 400
-    
-    if len(data['password']) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+
+    error = validate_register_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
     
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'Email already registered'}), 409
