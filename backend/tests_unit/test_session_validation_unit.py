@@ -19,7 +19,10 @@ def _patch_client_query(monkeypatch, existing_ids):
                 return types.SimpleNamespace(id=self._client_id)
             return None
 
-    monkeypatch.setattr(session_controller.Client, "query", DummyQuery())
+    class DummyClient:
+        query = DummyQuery()
+
+    monkeypatch.setattr(session_controller, "Client", DummyClient)
 
 
 def _patch_program_get(monkeypatch, existing_ids):
