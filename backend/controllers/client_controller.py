@@ -6,6 +6,38 @@ from utils.jwt_utils import token_required, role_required
 
 client_bp = Blueprint('client', __name__, url_prefix='/api/clients')
 
+VALID_FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced']
+
+def validate_client_payload(data):
+    if not data.get('name') or len(data['name']) < 2 or len(data['name']) > 50:
+        return 'Name must be 2-50 characters'
+    if not (16 <= data.get('age', 0) <= 100):
+        return 'Age must be between 16 and 100'
+    if data.get('fitness_level') not in VALID_FITNESS_LEVELS:
+        return 'Invalid fitness level'
+    if not data.get('goals') or len(data['goals']) < 10:
+        return 'Goals must be at least 10 characters'
+    return None
+
+def validate_client_update_payload(data):
+    if 'name' in data and (len(data['name']) < 2 or len(data['name']) > 50):
+        return 'Name must be 2-50 characters'
+    if 'age' in data and not (16 <= data['age'] <= 100):
+        return 'Age must be between 16 and 100'
+    if 'fitness_level' in data and data['fitness_level'] not in VALID_FITNESS_LEVELS:
+        return 'Invalid fitness level'
+    if 'goals' in data and len(data['goals']) < 10:
+        return 'Goals must be at least 10 characters'
+    return None
+
+def resolve_client_user_id(user_email):
+    if not user_email:
+        return None
+    user = User.query.filter_by(email=user_email).first()
+    if user and user.role == 'trainee':
+        return user.id
+    return None
+
 @client_bp.route('', methods=['GET'])
 @token_required
 @role_required('trainer')
@@ -26,25 +58,15 @@ def create_client():
             return jsonify({'error': 'Invalid or missing token'}), 401
         
         data = request.get_json()
-        
-        if not data.get('name') or len(data['name']) < 2 or len(data['name']) > 50:
-            return jsonify({'error': 'Name must be 2-50 characters'}), 400
-        if not (16 <= data.get('age', 0) <= 100):
-            return jsonify({'error': 'Age must be between 16 and 100'}), 400
-        if data.get('fitness_level') not in ['Beginner', 'Intermediate', 'Advanced']:
-            return jsonify({'error': 'Invalid fitness level'}), 400
-        if not data.get('goals') or len(data['goals']) < 10:
-            return jsonify({'error': 'Goals must be at least 10 characters'}), 400
+        error = validate_client_payload(data)
+        if error:
+            return jsonify({'error': error}), 400
         
         active_count = Client.query.filter_by(trainer_id=trainer_id, active=True).count()
         # if active_count >= 4:
         #     return jsonify({'error': 'Cannot have more than 4 active clients'}), 409
         
-        user_id = None
-        if data.get('user_email'):
-            user = User.query.filter_by(email=data['user_email']).first()
-            if user and user.role == 'trainee':
-                user_id = user.id
+        user_id = resolve_client_user_id(data.get('user_email'))
 
         client = Client(
             trainer_id=trainer_id,
@@ -74,21 +96,16 @@ def update_client(client_id):
         return jsonify({'error': 'Client not found'}), 404
     
     data = request.get_json()
+    error = validate_client_update_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
     if 'name' in data:
-        if len(data['name']) < 2 or len(data['name']) > 50:
-            return jsonify({'error': 'Name must be 2-50 characters'}), 400
         client.name = data['name']
     if 'age' in data:
-        if not (16 <= data['age'] <= 100):
-            return jsonify({'error': 'Age must be between 16 and 100'}), 400
         client.age = data['age']
     if 'fitness_level' in data:
-        if data['fitness_level'] not in ['Beginner', 'Intermediate', 'Advanced']:
-            return jsonify({'error': 'Invalid fitness level'}), 400
         client.fitness_level = data['fitness_level']
     if 'goals' in data:
-        if len(data['goals']) < 10:
-            return jsonify({'error': 'Goals must be at least 10 characters'}), 400
         client.goals = data['goals']
     
     db.session.commit()
