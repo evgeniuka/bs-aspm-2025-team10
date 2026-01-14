@@ -110,17 +110,20 @@ def test_resolve_client_user_id_returns_none_without_email():
 
 
 def test_resolve_client_user_id_returns_none_for_missing_user(monkeypatch):
-    monkeypatch.setattr(client_controller.User, "query", DummyQuery())
+    DummyUser = SimpleNamespace(query=DummyQuery())
+    monkeypatch.setattr(client_controller, "User", DummyUser)
     assert resolve_client_user_id("missing@example.com") is None
 
 
 def test_resolve_client_user_id_returns_none_for_non_trainee(monkeypatch):
     user = SimpleNamespace(id=10, role="trainer")
-    monkeypatch.setattr(client_controller.User, "query", DummyQuery(user))
+    DummyUser = SimpleNamespace(query=DummyQuery(user))
+    monkeypatch.setattr(client_controller, "User", DummyUser)
     assert resolve_client_user_id("trainer@example.com") is None
 
 
 def test_resolve_client_user_id_returns_id_for_trainee(monkeypatch):
     user = SimpleNamespace(id=12, role="trainee")
-    monkeypatch.setattr(client_controller.User, "query", DummyQuery(user))
+    DummyUser = SimpleNamespace(query=DummyQuery(user))
+    monkeypatch.setattr(client_controller, "User", DummyUser)
     assert resolve_client_user_id("trainee@example.com") == 12
