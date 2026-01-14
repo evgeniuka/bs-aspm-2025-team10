@@ -5,6 +5,23 @@ from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
+def validate_login_data(data):
+    if not data or not data.get('email') or not data.get('password'):
+        return 'Email and password are required'
+    if not isinstance(data.get('email'), str) or not isinstance(data.get('password'), str):
+        return 'Email and password are required'
+    return None
+
+def validate_register_data(data):
+    required_fields = ['email', 'password', 'full_name', 'role']
+    if not data or not all(field in data for field in required_fields):
+        return 'Missing required fields'
+    if not isinstance(data.get('role'), str) or data['role'] not in ['trainer', 'trainee']:
+        return 'Invalid role. Must be trainer or trainee'
+    if not isinstance(data.get('password'), str) or len(data['password']) < 8:
+        return 'Password must be at least 8 characters long'
+    return None
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """
@@ -13,8 +30,9 @@ def login():
     """
     data = request.get_json()
     
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'error': 'Email and password are required'}), 400
+    error = validate_login_data(data)
+    if error:
+        return jsonify({'error': error}), 400
     
     user = User.query.filter_by(email=data['email']).first()
     
@@ -45,15 +63,9 @@ def register():
     """
     data = request.get_json()
     
-    required_fields = ['email', 'password', 'full_name', 'role']
-    if not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing required fields'}), 400
-    
-    if data['role'] not in ['trainer', 'trainee']:
-        return jsonify({'error': 'Invalid role. Must be trainer or trainee'}), 400
-    
-    if len(data['password']) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+    error = validate_register_data(data)
+    if error:
+        return jsonify({'error': error}), 400
     
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'Email already registered'}), 409
