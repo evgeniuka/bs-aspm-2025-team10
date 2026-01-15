@@ -8,27 +8,45 @@ from utils.jwt_utils import token_required
 
 session_bp = Blueprint('session', __name__, url_prefix='/api/sessions')
 
-def validate_session_data(data):
+def validate_session_data(data, trainer_id=None):
     errors = []
-    
-    if not data.get('client_ids') or len(data['client_ids']) < 2:
+
+    if not data:
+        return ['Invalid request payload']
+
+    client_ids = data.get('client_ids') or []
+    program_ids = data.get('program_ids') or []
+
+    if len(client_ids) < 2:
         errors.append('At least 2 clients are required')
-    if len(data['client_ids']) > 4:
+    if len(client_ids) > 4:
         errors.append('Maximum 4 clients allowed')
-    
-    if not data.get('program_ids') or len(data['program_ids']) != len(data['client_ids']):
+
+    if not program_ids or len(program_ids) != len(client_ids):
         errors.append('Each selected client must have a program assigned')
-    
-    for client_id in data['client_ids']:
+
+    client_lookup = {}
+    for client_id in client_ids:
         client = Client.query.filter_by(id=client_id).first()
         if not client:
             errors.append(f'Client ID {client_id} not found')
-    
-    for program_id in data['program_ids']:
+            continue
+        if trainer_id and client.trainer_id != trainer_id:
+            errors.append(f'Client ID {client_id} not assigned to trainer')
+            continue
+        client_lookup[client_id] = client
+
+    for client_id, program_id in zip(client_ids, program_ids):
         program = Program.query.get(program_id)
         if not program:
             errors.append(f'Program ID {program_id} not found')
-    
+            continue
+        if trainer_id and program.trainer_id != trainer_id:
+            errors.append(f'Program ID {program_id} not assigned to trainer')
+            continue
+        if program.client_id != client_id:
+            errors.append(f'Program ID {program_id} is not assigned to Client ID {client_id}')
+
     return errors
 
 @session_bp.route('', methods=['POST'])
@@ -37,7 +55,7 @@ def create_session():
     trainer_id = request.user_id
     data = request.get_json()
     
-    errors = validate_session_data(data)
+    errors = validate_session_data(data, trainer_id=trainer_id)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
     
