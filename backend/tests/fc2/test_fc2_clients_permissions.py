@@ -68,6 +68,14 @@ def test_missing_token_returns_401(client):
     assert data["error"] == "Token is missing"
 
 
+def test_missing_token_on_deactivate_returns_401(client):
+    response = client.post("/api/clients/1/deactivate")
+
+    assert response.status_code == 401
+    data = response.get_json()
+    assert data["error"] == "Token is missing"
+
+
 def test_wrong_role_returns_403(client, app):
     trainee = _create_user("trainee@example.com", "trainee", full_name="Trainee User")
     headers = _auth_headers(trainee)

@@ -362,6 +362,31 @@ def test_deactivate_client_not_found_returns_404(client, app):
     assert data["error"] == "Client not found"
 
 
+def test_trainer_cannot_deactivate_other_trainers_client(client, app):
+    trainer = _create_user("trainer.deactivate.owner@example.com", "trainer", full_name="Trainer Owner")
+    other_trainer = _create_user("trainer.deactivate.other@example.com", "trainer", full_name="Trainer Other")
+    headers = _auth_headers(trainer)
+
+    other_client = Client(
+        trainer_id=other_trainer.id,
+        name="Other Trainer Client",
+        age=38,
+        fitness_level="Intermediate",
+        goals="Improve speed and agility"
+    )
+    db.session.add(other_client)
+    db.session.commit()
+
+    response = client.post(f"/api/clients/{other_client.id}/deactivate", headers=headers)
+
+    assert response.status_code == 404
+    data = response.get_json()
+    assert data["error"] == "Client not found"
+
+    db_client = Client.query.get(other_client.id)
+    assert db_client.active is True
+
+
 def test_trainee_can_fetch_own_client_profile(client, app):
     trainer = _create_user("trainer.profile@example.com", "trainer", full_name="Trainer Thirteen")
     trainee = _create_user("trainee.profile@example.com", "trainee", full_name="Trainee Profile")
