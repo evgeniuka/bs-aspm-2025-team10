@@ -46,5 +46,6 @@ def validate_client_update_payload(data):
 def parse_exercise_filters(args):
     search = args.get("search", "").strip()
     category = args.get("category")
+    equipment = args.get("equipment")
     difficulty = args.get("difficulty")
-    return search, category, difficulty
+    return search, category, equipment, difficulty
