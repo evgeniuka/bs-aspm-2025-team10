@@ -390,3 +390,75 @@ def test_create_program_invalid_exercise_id_returns_400(app, client):
     with app.app_context():
         assert Program.query.count() == 0
         assert ProgramExercise.query.count() == 0
+
+
+def test_get_programs_for_client_returns_assigned_program(app, client):
+    trainer_id, role = create_trainer(app)
+    client_id = create_client_record(app, trainer_id)
+    exercise_ids = create_exercises(app, count=5)
+    token = generate_auth_token(app, trainer_id, role)
+    payload = {
+        'name': 'Client Program',
+        'client_id': client_id,
+        'notes': 'Structured plan.',
+        'exercises': build_exercises_payload(exercise_ids)
+    }
+
+    create_response = client.post(
+        '/api/programs',
+        json=payload,
+        headers={'Authorization': f'Bearer {token}'}
+    )
+
+    assert create_response.status_code == 201
+
+    response = client.get(
+        f'/api/programs?client_id={client_id}',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    program = data[0]
+    assert program['id'] == create_response.get_json()['program_id']
+    assert program['client_id'] == client_id
+    assert program['trainer_id'] == trainer_id
+    assert program['name'] == payload['name']
+    assert program['notes'] == payload['notes']
+    exercises = program['exercises']
+    assert len(exercises) == len(payload['exercises'])
+    assert [exercise['order'] for exercise in exercises] == list(range(len(payload['exercises'])))
+    assert exercises[0]['sets'] == payload['exercises'][0]['sets']
+    assert exercises[0]['reps'] == payload['exercises'][0]['reps']
+    assert exercises[0]['weight_kg'] == payload['exercises'][0]['weight_kg']
+    assert exercises[0]['rest_seconds'] == payload['exercises'][0]['rest_seconds']
+
+
+def test_get_programs_missing_client_id_returns_400(app, client):
+    trainer_id, role = create_trainer(app)
+    token = generate_auth_token(app, trainer_id, role)
+
+    response = client.get(
+        '/api/programs',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {'error': 'client_id query param is required'}
+
+
+def test_get_programs_client_not_owned_returns_404(app, client):
+    trainer_id, role = create_trainer(app)
+    other_trainer_id, _ = create_trainer(app, email='trainer3@example.com')
+    client_id = create_client_record(app, other_trainer_id, name='Other Client')
+    token = generate_auth_token(app, trainer_id, role)
+
+    response = client.get(
+        f'/api/programs?client_id={client_id}',
+        headers={'Authorization': f'Bearer {token}'}
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {'error': 'Client not found or not owned by trainer'}
