@@ -114,6 +114,21 @@ def test_get_exercises_search_filters_case_insensitive(app_client):
     assert names == {"Push Up"}
 
 
+def test_get_exercises_search_squat_variations(app_client):
+    app, client = app_client
+
+    with app.app_context():
+        create_exercise("Front Squat", category="lower_body", equipment="barbell", difficulty="intermediate")
+        create_exercise("Goblet Squat", category="lower_body", equipment="dumbbell", difficulty="beginner")
+        create_exercise("Push Up", category="upper_body", equipment="bodyweight", difficulty="beginner")
+
+    resp = client.get("/api/exercises?search=squat")
+    assert resp.status_code == 200
+    items = _json_list(resp)
+
+    assert _names(items) == {"Front Squat", "Goblet Squat"}
+
+
 def test_get_exercises_search_non_matching_returns_empty(app_client):
     app, client = app_client
 
@@ -141,6 +156,38 @@ def test_get_exercises_filters_by_category_and_difficulty(app_client):
     names = _names(items)
 
     assert names == {"Sit Up"}
+
+
+def test_get_exercises_filters_by_equipment(app_client):
+    app, client = app_client
+
+    with app.app_context():
+        create_exercise("Bench Press", category="upper_body", equipment="barbell", difficulty="intermediate")
+        create_exercise("Goblet Squat", category="lower_body", equipment="dumbbell", difficulty="beginner")
+        create_exercise("Plank", category="core", equipment="bodyweight", difficulty="beginner")
+
+    resp = client.get("/api/exercises?equipment=barbell")
+    assert resp.status_code == 200
+    items = _json_list(resp)
+
+    assert _names(items) == {"Bench Press"}
+
+
+@pytest.mark.parametrize(
+    ("query", "error"),
+    [
+        ("category=invalid", "Invalid category filter"),
+        ("equipment=invalid", "Invalid equipment filter"),
+        ("difficulty=invalid", "Invalid difficulty filter"),
+    ],
+)
+def test_get_exercises_invalid_filters_return_400(app_client, query, error):
+    _app, client = app_client
+
+    response = client.get(f"/api/exercises?{query}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": error}
 
 
 def test_protected_route_requires_token(app_client):
