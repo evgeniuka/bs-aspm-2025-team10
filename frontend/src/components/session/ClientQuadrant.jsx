@@ -8,7 +8,7 @@ const statusTexts = {
   complete: 'COMPLETE'
 };
 
-const ClientQuadrant = ({ client, borderColor }) => {
+const ClientQuadrant = ({ client, borderColor, onSelect, onRestTimeUpdate }) => {
   const currentExerciseIndex = client.current_exercise_index;
   const currentExercise = client.program.exercises[currentExerciseIndex];
   const totalExercises = client.program.exercises.length;
@@ -19,6 +19,12 @@ const ClientQuadrant = ({ client, borderColor }) => {
     const exercise = client.program.exercises[client.current_exercise_index];
     setRestTime(exercise?.rest_seconds || 60);
   }, [client.current_exercise_index, client.program.exercises]);
+
+  useEffect(() => {
+    if (onRestTimeUpdate) {
+      onRestTimeUpdate(client.id, restTime);
+    }
+  }, [client.id, onRestTimeUpdate, restTime]);
 
   useEffect(() => {
     let interval;
@@ -52,9 +58,19 @@ const ClientQuadrant = ({ client, borderColor }) => {
         bgcolor: client.status === 'complete' ? '#e8f5e9' : '#fff',
         borderLeft: `8px solid ${borderColor}`, // ✅ Цветная граница
         transition: 'all 0.3s ease',
+        cursor: 'pointer',
         '&:hover': {
           borderLeftWidth: '12px',
           boxShadow: 6
+        }
+      }}
+      onClick={() => onSelect?.(client)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect?.(client);
         }
       }}
     >
