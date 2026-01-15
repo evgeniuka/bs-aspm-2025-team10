@@ -22,7 +22,10 @@ class DummyProgramQuery:
 
     def get(self, program_id):
         if program_id in self._existing_ids:
-            return object()
+            program = type("Program", (), {})()
+            program.client_id = {10: 1, 20: 2}.get(program_id)
+            program.trainer_id = 99
+            return program
         return None
 
 
@@ -94,3 +97,10 @@ def test_validate_session_data_accepts_valid_payload(monkeypatch):
     payload = _base_payload()
     errors = session_controller.validate_session_data(payload)
     assert errors == []
+
+
+def test_validate_session_data_rejects_program_mismatch(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2}, program_ids={10, 20})
+    payload = {"client_ids": [2, 1], "program_ids": [10, 20]}
+    errors = session_controller.validate_session_data(payload)
+    assert "Program ID 10 is not assigned to Client ID 2" in errors
