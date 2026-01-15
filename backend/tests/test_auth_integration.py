@@ -1,11 +1,16 @@
 from models.user import User
 
 
-def create_test_user(db_session, email="trainer@example.com", password="password123"):
+def create_test_user(
+    db_session,
+    email="trainer@example.com",
+    password="password123",
+    role="trainer",
+):
     user = User(
         email=email,
         full_name="Test Trainer",
-        role="trainer",
+        role=role,
         is_active=True,
     )
     user.set_password(password)
@@ -51,6 +56,45 @@ def test_login_success_returns_token_and_user(client, db_session):
     assert payload["user"]["role"] == user.role
     db_session.refresh(user)
     assert user.last_login is not None
+
+
+def test_login_success_for_trainee_returns_token_and_role(client, db_session):
+    user = create_test_user(
+        db_session,
+        email="trainee@example.com",
+        password="password123",
+        role="trainee",
+    )
+
+    response = client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert "token" in payload
+    assert payload["user"]["id"] == user.id
+    assert payload["user"]["email"] == user.email
+    assert payload["user"]["role"] == "trainee"
+
+
+def test_login_wrong_credentials_for_trainee_returns_401(client, db_session):
+    create_test_user(
+        db_session,
+        email="trainee@example.com",
+        password="password123",
+        role="trainee",
+    )
+
+    response = client.post(
+        "/api/auth/login",
+        json={"email": "trainee@example.com", "password": "wrong"},
+    )
+
+    assert response.status_code == 401
+    payload = response.get_json()
+    assert payload["error"] == "Invalid email or password"
 
 
 def test_me_requires_token(client):
