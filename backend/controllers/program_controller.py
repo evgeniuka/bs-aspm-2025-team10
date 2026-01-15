@@ -42,6 +42,48 @@ def validate_program_data(data):
     
     return errors
 
+def serialize_program(program):
+    return {
+        'id': program.id,
+        'trainer_id': program.trainer_id,
+        'client_id': program.client_id,
+        'name': program.name,
+        'notes': program.notes,
+        'created_at': program.created_at.isoformat() if program.created_at else None,
+        'exercises': [
+            {
+                'id': exercise.id,
+                'exercise_id': exercise.exercise_id,
+                'order': exercise.order,
+                'sets': exercise.sets,
+                'reps': exercise.reps,
+                'weight_kg': exercise.weight_kg,
+                'rest_seconds': exercise.rest_seconds,
+                'notes': exercise.notes
+            }
+            for exercise in sorted(program.exercises, key=lambda ex: ex.order)
+        ]
+    }
+
+@program_bp.route('', methods=['GET'])
+@token_required
+def get_programs():
+    trainer_id = request.user_id
+    client_id = request.args.get('client_id', type=int)
+    if not client_id:
+        return jsonify({'error': 'client_id query param is required'}), 400
+
+    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
+    if not client:
+        return jsonify({'error': 'Client not found or not owned by trainer'}), 404
+
+    programs = (
+        Program.query.filter_by(client_id=client_id, trainer_id=trainer_id)
+        .order_by(Program.created_at.desc())
+        .all()
+    )
+    return jsonify([serialize_program(program) for program in programs]), 200
+
 @program_bp.route('', methods=['POST'])
 @token_required
 def create_program():
