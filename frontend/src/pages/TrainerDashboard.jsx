@@ -8,6 +8,11 @@ import ClientFormModal from '../components/client/ClientFormModal';
 import ConfirmDialog from '../components/client/ConfirmDialog';
 import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
 import StartSessionModal from '../components/session/StartSessionModal';
+import EditIcon from '@mui/icons-material/Edit';
+import HistoryIcon from '@mui/icons-material/History';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+
+
 
 const TrainerDashboard = () => {
   const { user } = useAuth();
@@ -75,24 +80,81 @@ const TrainerDashboard = () => {
 
   const handleSubmit = editingClient ? handleUpdate : handleCreate;
 
+  const handleViewHistory = (clientId) => {
+      navigate(`/trainer/clients/${clientId}/history`);
+    };
+
+
+  const handleViewAnalytics = (clientId) => {
+    navigate(`/trainer/clients/${clientId}/analytics`);
+  };
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Welcome, {user?.full_name}!</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={() => setOpenModal(true)}>
+          
+          
+          <Button 
+            size="small" 
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => setOpenModal(true)}
+            sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#929292'
+            }
+          }}>
             Add Client
           </Button>
+
+
           <Button 
-            variant="outlined" 
+            size="small" 
+            variant="outlined"
+            startIcon={<EditIcon />}
             onClick={() => navigate('/trainer/program/new')} 
-          >
+            sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#929292'
+            }
+          }}>
             Create Program
           </Button>
+           
            <Button 
-            variant="contained" 
+            variant="outlined"
             color="primary"
             onClick={() => setOpenSessionModal(true)}
+            sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#929292'
+            }
+          }}
           >
             Start Training Session
           </Button>
@@ -105,6 +167,7 @@ const TrainerDashboard = () => {
         {clients.map((client) => (
           <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={client.id}>
             <ClientCard
+            
               client={client}
               onEdit={(client) => {
                 setEditingClient(client);
@@ -114,6 +177,9 @@ const TrainerDashboard = () => {
                 setClientToDelete(client);
                 setOpenConfirm(true);
               }}
+              onViewHistory={() => handleViewHistory(client.id)}
+              onViewAnalytics={() => handleViewAnalytics(client.id)}
+              
             />
           </Grid>
         ))}
@@ -159,8 +225,7 @@ const TrainerDashboard = () => {
         onClose={() => setOpenExerciseLibrary(false)}
         onAddExercise={(exercise) => {
           console.log('Selected exercise:', exercise);
-          //  FC-4
-        }}
+         }}
       />
       <StartSessionModal
         open={openSessionModal}

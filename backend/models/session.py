@@ -1,17 +1,21 @@
-from . import db
 from datetime import datetime
-from sqlalchemy.dialects.postgresql import JSON
+from . import db 
 
 class Session(db.Model):
     __tablename__ = 'sessions'
     
     id = db.Column(db.Integer, primary_key=True)
     trainer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='active')  
     start_time = db.Column(db.DateTime, default=datetime.utcnow)
     end_time = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.Enum('active', 'completed', 'cancelled', name='session_status'), nullable=False, default='active')
     
-    clients = db.relationship('SessionClient', back_populates='session', cascade='all, delete-orphan')
+    trainer = db.relationship('User', backref='sessions')
+    clients = db.relationship('SessionClient', backref='session', lazy=True, cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Session {self.id} - {self.status}>'
+
 
 class SessionClient(db.Model):
     __tablename__ = 'session_clients'
@@ -20,11 +24,17 @@ class SessionClient(db.Model):
     session_id = db.Column(db.Integer, db.ForeignKey('sessions.id'), nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
-    current_exercise_index = db.Column(db.Integer, nullable=False, default=0)
-    current_set = db.Column(db.Integer, nullable=False, default=1)
-    completed_exercises = db.Column(db.JSON, default=list, nullable=False)  
-    status = db.Column(db.Enum('ready', 'in_progress', 'resting', 'completed', name='client_session_status'), nullable=False, default='ready')
     
-    session = db.relationship('Session', back_populates='clients')
-    client = db.relationship('Client')
-    program = db.relationship('Program')
+    current_exercise_index = db.Column(db.Integer, default=0)
+    current_set = db.Column(db.Integer, default=1)
+    status = db.Column(db.String(20), default='ready')  
+    
+
+    completed_exercises = db.Column(db.JSON, default=list)  
+    rest_time_remaining = db.Column(db.Integer, default=0)  
+    
+    client = db.relationship('Client', backref='session_clients')
+    program = db.relationship('Program', backref='session_clients')
+    
+    def __repr__(self):
+        return f'<SessionClient session={self.session_id} client={self.client_id}>'

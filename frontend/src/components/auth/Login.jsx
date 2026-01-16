@@ -65,7 +65,7 @@ const Login = () => {
               mb: 2,
             }}
           >
-            <Typography variant="h6">LOGO</Typography>
+            <Typography variant="h1">⚡️</Typography>
           </Box>
           <Typography variant="h4" align="center" fontWeight="bold" color="text.secondary" gutterBottom>
             Transform Your Fitness Journey
@@ -93,45 +93,7 @@ const Login = () => {
             <Typography variant="h4" component="h1" fontWeight="bold" align="center" gutterBottom>
               Sign in to FitCoach
             </Typography>
-            {/* role selector */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Button
-                variant={role === 'trainer' ? 'contained' : 'outlined'}
-                onClick={() => setRole('trainer')}
-                fullWidth
-                sx={{
-                  mt: 2,
-                  py: 1.5,
-                  fontWeight: 'bold',
-                  backgroundColor: role === 'trainer' ? 'black' : 'transparent',
-                  color: role === 'trainer' ? 'white' : 'black',
-                  border: role === 'trainer' ? '1px solid black' : '1px solid black',
-                  '&:hover': {
-                    backgroundColor: 'gray',
-                  },
-                }}
-              >
-                Trainer
-              </Button>
-              <Button
-                variant={role === 'trainee' ? 'contained' : 'outlined'}
-                onClick={() => setRole('trainee')}
-                fullWidth
-                sx={{
-                  mt: 2,
-                  py: 1.5,
-                  fontWeight: 'bold',
-                  backgroundColor: role === 'trainee' ? 'black' : 'transparent',
-                  color: role === 'trainee' ? 'white' : 'black',
-                  border: role === 'trainee' ? '1px solid black' : '1px solid black',
-                  '&:hover': {
-                    backgroundColor: 'gray', 
-                  },
-                }}
-              >
-                Trainee
-              </Button>
-            </Box>
+           
 
             <TextField
               label="Email"
@@ -173,16 +135,6 @@ const Login = () => {
               }}
             />
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-              <FormControlLabel
-                control={<Checkbox />}
-                label="Remember me"
-                sx={{ fontSize: '0.875rem' }}
-              />
-              <Link href="#" variant="body2">
-                Forgot password?
-              </Link>
-            </Box>
 
             {/* Sign in button */}
             <Button
@@ -206,13 +158,7 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
 
-            {/* Registration */}
-            <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-              Don't have an account?{' '}
-              <Link href="/register" variant="body2" fontWeight="bold">
-                Create account
-              </Link>
-            </Typography>
+       
         </Box>
       </Grid>
     </Grid>

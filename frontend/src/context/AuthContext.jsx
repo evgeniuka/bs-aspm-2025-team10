@@ -19,15 +19,24 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => { 
     const initializeAuth = async () => {
+      console.log('🔍 AuthContext: Initializing auth...');
+      
       if (authService.isAuthenticated()) {
         try {
           const userData = await authService.getCurrentUser();
+          console.log('✅ AuthContext: User loaded from token:', userData);
           setUser(userData);
+          
+
+          localStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
-          console.error('Token validation failed:', error);
+          console.error('❌ Token validation failed:', error);
           localStorage.removeItem('token');
           sessionStorage.removeItem('token');
+          localStorage.removeItem('user'); 
         }
+      } else {
+        console.log('ℹ️ AuthContext: No valid token found');
       }
       setLoading(false);
     };
@@ -36,14 +45,23 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password, rememberMe = false) => {
+    console.log('🔐 AuthContext: Login called for:', email);
+    
     const { user: userData, token } = await authService.login(email, password, rememberMe);
+    
+    console.log('✅ AuthContext: Login successful:', userData);
     setUser(userData);
+
 
     if (rememberMe) {
       localStorage.setItem('token', token);
     } else {
       sessionStorage.setItem('token', token);
     }
+
+   
+    localStorage.setItem('user', JSON.stringify(userData));
+
 
     if (userData.role === 'trainer') {
       navigate('/trainer/dashboard');
@@ -53,19 +71,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    console.log('🚪 AuthContext: Logout called');
+    
     await authService.logout();
     setUser(null);
+    
+  
+    localStorage.removeItem('user');
+    
     navigate('/login');
   };
 
-  const value = {
-    user,
-    setUser,
-    loading,
-    setLoading,
-    login,
-    logout
-  };
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>

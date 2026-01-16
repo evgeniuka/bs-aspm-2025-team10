@@ -6,7 +6,8 @@ import {
   Paper,
   Button,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress  
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import { clientService } from '../../services/clientService';
@@ -18,6 +19,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   const [restTime, setRestTime] = useState(client.rest_time_remaining || currentExercise?.rest_seconds || 60);
 
   const [showCompleteButton, setShowCompleteButton] = useState(false);
+  const [loading, setLoading] = useState(false); 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
@@ -39,25 +41,6 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
     return () => clearInterval(interval);
   }, [client.status, restTime]);
 
-
-  useEffect(() => {
-    if (client.status === 'resting' && restTime === 0) {
-      const autoComplete = async () => {
-        try {
-          await clientService.markSetComplete(sessionId, {
-            client_id: client.id,
-            exercise_id: currentExercise.id,
-            set_number: client.current_set
-          });
-        } catch (err) {
-          console.error('Auto-complete failed:', err);
-        }
-      };
-      autoComplete();
-    }
-  }, [client.status, restTime, sessionId, client.id, currentExercise?.id, client.current_set]);
-  
-
   const overallProgress = totalExercises > 0
     ? ((currentExerciseIndex + 1) / totalExercises) * 100
     : 0;
@@ -68,7 +51,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   };
 
   const handleMarkComplete = async () => {
-    setShowCompleteButton(false);  
+    setLoading(true);  
     
     try {
       await clientService.markSetComplete(sessionId, {
@@ -76,6 +59,8 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
         exercise_id: currentExercise.id,
         set_number: client.current_set
       });
+
+      setShowCompleteButton(false); 
 
       setSnackbar({
         open: true,
@@ -89,6 +74,9 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
         message: 'Failed to mark complete. Tap again.',
         severity: 'error'
       });
+
+    } finally {
+      setLoading(false); 
     }
   };
 
@@ -98,6 +86,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
       onClick={handleTap}
       elevation={3}
       sx={{
+        position: 'relative',  
         p: 2,
         display: 'flex',
         flexDirection: 'column',
@@ -149,11 +138,12 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
             <Button
               variant="contained"
               color="success"
-              startIcon={<CheckIcon />}
+              startIcon={loading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <CheckIcon />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleMarkComplete();
               }}
+              disabled={loading}  
               sx={{
                 width: '100%',
                 py: 1.5,
@@ -161,7 +151,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
                 fontWeight: 'bold'
               }}
             >
-              Mark Set Complete
+              {loading ? 'Saving...' : 'Mark Set Complete'}
             </Button>
           </Box>
         )}
@@ -224,6 +214,15 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
             <Typography variant="h5" fontWeight="bold" color="warning.main" align="center">
               ⏱ REST: {Math.floor(restTime / 60)}:{String(restTime % 60).padStart(2, '0')}
             </Typography>
+          ): client.status === 'resting' && restTime === 0 ? (
+            <Button 
+              variant="contained" 
+              color="success"
+              onClick={handleMarkComplete}
+              sx={{ width: '100%' }}
+            >
+              Start Next Set
+            </Button>
           ) : client.status === 'complete' ? (
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h4" fontWeight="bold" color="success.main">

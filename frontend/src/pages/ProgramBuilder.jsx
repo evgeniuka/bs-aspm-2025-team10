@@ -213,6 +213,19 @@ const ProgramBuilder = () => {
               variant="outlined" 
               onClick={() => setOpenLibrary(true)}
               disabled={exercises.length >= 20}
+              sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#737373'
+            }
+          }}
             >
               Add Exercise
             </Button>

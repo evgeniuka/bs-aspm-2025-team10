@@ -8,6 +8,14 @@ import ProgramBuilder from './pages/ProgramBuilder';
 import SessionView from './pages/SessionView';
 import SplitScreenView from './pages/SplitScreenView';
 import Navbar from './components/Navbar';
+import SessionSummary from './pages/SessionSummary'; 
+import TrainerClientHistory from './pages/TrainerClientHistory';
+import TraineeHistory from './pages/TraineeHistory'
+import TrainerClientAnalytics from './pages/TrainerClientAnalytics';
+import TraineeAnalytics from './pages/TraineeAnalytics';
+import TraineeSessionDetails from './pages/TraineeSessionDetails';
+import TraineeLiveSession from './pages/trainee/TraineeLiveSession';
+
 
 function App() {
   return (
@@ -45,6 +53,13 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
         <Route path="/session/:id" element={<SplitScreenView />} />
+        <Route path="/session/:id/summary" element={<SessionSummary />} />
+        <Route path="/trainer/clients/:clientId/history" element={<TrainerClientHistory />} />
+        <Route path="/trainee/history" element={<TraineeHistory />} />
+        <Route path="/trainer/clients/:clientId/analytics" element={<TrainerClientAnalytics />} />
+        <Route path="/trainee/analytics" element={<TraineeAnalytics />} />
+        <Route path="/trainee/session/:sessionId/details" element={<TraineeSessionDetails />} />
+        <Route path="/trainee/live-session" element={<TraineeLiveSession />} />
 
       </Routes>
     </>

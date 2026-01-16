@@ -6,6 +6,7 @@ from models.session import Session, SessionClient
 from utils.jwt_utils import token_required
 from models.workout_log import WorkoutLog
 from sqlalchemy.orm.attributes import flag_modified
+from datetime import datetime
 
 session_bp = Blueprint('session', __name__, url_prefix='/api/sessions')
 
@@ -38,6 +39,9 @@ def create_session():
     trainer_id = request.user_id
     data = request.get_json()
     
+    print(f"📋 Creating session for trainer {trainer_id}")
+    print(f"📋 Request data: {data}")
+    
     errors = validate_session_data(data)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
@@ -47,9 +51,12 @@ def create_session():
         status='active'
     )
     db.session.add(session)
-    db.session.flush()      
+    db.session.flush()
+    
+    print(f"✅ Session created with ID: {session.id}")
 
     for idx, (client_id, program_id) in enumerate(zip(data['client_ids'], data['program_ids'])):
+        print(f"➕ Adding client {client_id} to session {session.id}")
         session_client = SessionClient(
             session_id=session.id,
             client_id=client_id,
@@ -61,7 +68,28 @@ def create_session():
         db.session.add(session_client)
     
     db.session.commit()
+    
+    print(f"📤 Sending session_started to {len(data['client_ids'])} trainees...")
+    
+    try:
+        socketio = current_app.extensions['socketio']
+        for client_id in data['client_ids']:
+            room = f'trainee_{client_id}'
+            print(f"📤 Emitting 'session_started' to room: {room}")
+            
+            socketio.emit('session_started', {
+                'session_id': session.id,
+                'message': 'Your trainer has started a session'
+            }, room=room)
+            
+            print(f"✅ Sent 'session_started' to trainee {client_id}")
+    except Exception as e:
+        print(f"❌ WebSocket emit failed: {e}")
+        import traceback
+        traceback.print_exc()
+    
     return jsonify({'message': 'Session created', 'session_id': session.id}), 201
+
 
 
 @session_bp.route('/<int:session_id>', methods=['GET'])
@@ -96,7 +124,9 @@ def get_session(session_id):
             },
             'current_exercise_index': sc.current_exercise_index,
             'current_set': sc.current_set,
-            'status': sc.status
+            'status': sc.status,
+            'completed_exercises': sc.completed_exercises or [],
+            'rest_time_remaining': sc.rest_time_remaining or 0
         })
 
     return jsonify({
@@ -107,16 +137,6 @@ def get_session(session_id):
         'clients': clients_data
     }), 200
 
-@session_bp.route('/<int:session_id>/end', methods=['POST'])
-@token_required
-def end_session(session_id):
-    trainer_id = request.user_id
-    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
-    
-    session.status = 'completed'
-    db.session.commit()
-    
-    return jsonify({'message': 'Session ended successfully'}), 200
 
 @session_bp.route('/<int:session_id>/complete-set', methods=['POST'])
 @token_required
@@ -188,16 +208,74 @@ def complete_set(session_id):
         'completed_exercises': session_client.completed_exercises
     }
     
-    socketio = current_app.extensions.get('socketio')
-    if socketio:
+    try:
+        socketio = current_app.extensions['socketio']
         socketio.emit('session_update', {
             'session_id': session_id,
             'client_id': data['client_id'],
             'action': 'set_complete',
             'updated_client_data': updated_client_data
         }, room=f'session_{session_id}')
+        print(f"✅ WebSocket emit successful for client {data['client_id']}")
+    except Exception as e:
+        print(f"⚠️ WebSocket emit failed: {e}")
     
     return jsonify({
         'message': 'Set marked as complete',
         'updated_client': updated_client_data
+    }), 200
+
+
+@session_bp.route('/<int:session_id>/end', methods=['POST'])
+@token_required
+def end_session(session_id):
+    trainer_id = request.user_id
+    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    
+    if session.status == 'completed':
+        return jsonify({'error': 'Session already ended'}), 400
+    
+    session.status = 'completed'
+    session.end_time = datetime.utcnow()
+    duration_minutes = int((session.end_time - session.start_time).total_seconds() / 60)
+    
+    clients_summary = []
+    for sc in session.clients:
+        sc.client.last_workout_date = session.start_time.date()
+        
+        total_exercises = ProgramExercise.query.filter_by(program_id=sc.program_id).count()
+        exercises_completed = len(sc.completed_exercises) if sc.completed_exercises else 0
+        completion_percentage = round((exercises_completed / total_exercises) * 100, 1) if total_exercises > 0 else 0
+        
+        clients_summary.append({
+            'client_id': sc.client.id,
+            'client_name': sc.client.name,
+            'exercises_completed': exercises_completed,
+            'total_exercises': total_exercises,
+            'completion_percentage': completion_percentage
+        })
+    
+    db.session.commit()
+    
+    summary = {
+        'session_id': session_id,
+        'start_time': session.start_time.isoformat(),
+        'end_time': session.end_time.isoformat(),
+        'duration_minutes': duration_minutes,
+        'clients': clients_summary
+    }
+    
+    try:
+        socketio = current_app.extensions['socketio']
+        socketio.emit('session_ended', {
+            'session_id': session_id,
+            'message': 'Session ended by trainer'
+        }, room=f'session_{session_id}')
+        print(f"✅ Session ended WebSocket emit successful")
+    except Exception as e:
+        print(f"⚠️ WebSocket emit failed: {e}")
+    
+    return jsonify({
+        'success': True,
+        'summary': summary
     }), 200

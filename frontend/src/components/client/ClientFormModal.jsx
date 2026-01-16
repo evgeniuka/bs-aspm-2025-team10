@@ -58,7 +58,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="name"
-            label="Name *"
+            label="Name "
             fullWidth
             value={formData.name}
             onChange={handleChange}
@@ -67,7 +67,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="age"
-            label="Age *"
+            label="Age "
             type="number"
             fullWidth
             value={formData.age}
@@ -99,7 +99,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="goals"
-            label="Goals *"
+            label="Goals "
             multiline
             rows={4}
             fullWidth
@@ -110,8 +110,40 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
         </form>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
+        <Button 
+          onClick={onClose}
+          variant="outlined"
+          sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#737373'
+            }
+          }}>
+          Cancel
+        </Button>
+        <Button 
+        onClick={handleSubmit} 
+        variant="outlined"
+        sx={{
+            color: '#000',
+            borderColor: '#000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000',
+              borderWidth: 2,
+              bgcolor: '#737373'
+            }
+          }}>
           {isEdit ? 'Save Changes' : 'Create Client'}
         </Button>
       </DialogActions>

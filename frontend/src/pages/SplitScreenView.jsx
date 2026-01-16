@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container, CircularProgress, Alert } from '@mui/material';
 import { clientService } from '../services/clientService';
@@ -6,7 +6,7 @@ import { socketService } from '../services/socket';
 import ClientQuadrant from '../components/session/ClientQuadrant';
 import TrainerControlsPanel from '../components/session/TrainerControlsPanel';
 
-const borderColors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0']; 
+const borderColors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0'];
 
 const SplitScreenView = () => {
   const { id: sessionId } = useParams();
@@ -14,25 +14,22 @@ const SplitScreenView = () => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const handleEndSession = async () => {
+  const socketInitialized = useRef(false);  
+  const handleEndSession = (summaryData) => {
     try {
-      socketService.leaveSession(sessionId);
-      socketService.disconnect();
-      await clientService.endSession(sessionId);
-      setTimeout(() => {
+      console.log('🛑 Ending session, navigating away');
+      
+      if (summaryData) {
+        navigate(`/session-summary/${sessionId}`, { state: { summary: summaryData } });
+      } else {
         navigate('/trainer/dashboard');
-      }, 100);
+      }
     } catch (err) {
-      console.error('Failed to end session:', err);
-      navigate('/trainer/dashboard'); 
+      console.error('❌ Navigation failed:', err);
+      navigate('/trainer/dashboard');
     }
   };
 
-  <TrainerControlsPanel
-    sessionId={sessionId}
-    onEndSession={handleEndSession}
-  />
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -51,15 +48,19 @@ const SplitScreenView = () => {
 
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || loading || socketInitialized.current) return;
+
+    console.log('🔌 Initializing WebSocket for session', sessionId);
+    socketInitialized.current = true;  
 
     const socket = socketService.connect();
     socketService.joinSession(sessionId);
 
+    
     socketService.onSessionUpdate((data) => {
       console.log('🔄 Session update received:', data);
-      
-      // Trigger pulse animation
+
+     
       const quadrantElement = document.getElementById(`client-${data.client_id}`);
       if (quadrantElement) {
         quadrantElement.classList.add('pulse-animation');
@@ -67,34 +68,42 @@ const SplitScreenView = () => {
           quadrantElement.classList.remove('pulse-animation');
         }, 300);
       }
-      
-      setSession(prevSession => {
+
+      setSession((prevSession) => {
         if (!prevSession) return prevSession;
         return {
           ...prevSession,
-          clients: prevSession.clients.map(client =>
+          clients: prevSession.clients.map((client) =>
             client.id === data.client_id
               ? { ...client, ...data.updated_client_data }
               : client
-          )
+          ),
         };
       });
     });
 
+
+    socketService.onSessionEnded((data) => {
+      console.log('🛑 Session ended by trainer:', data);
+       setTimeout(() => {
+      socketService.disconnect();
+      navigate('/trainer/dashboard');
+    }, 500);
+    });
+
+  
     return () => {
+      console.log('🧹 Cleanup: Closing socket via useEffect');
       socketService.offSessionUpdate();
+      socketService.offSessionEnded();
       socketService.leaveSession(sessionId);
       socketService.disconnect();
+      socketInitialized.current = false;  
     };
-  }, [sessionId]);
-
+  }, [sessionId, loading, navigate]);
 
   if (loading) {
-    return (
-      <CircularProgress
-        sx={{ mt: 4, display: 'block', margin: '50vh auto' }}
-      />
-    );
+    return <CircularProgress sx={{ mt: 4, display: 'block', margin: '50vh auto' }} />;
   }
 
   if (error) {
@@ -108,7 +117,8 @@ const SplitScreenView = () => {
     <Box sx={{ height: '100vh', bgcolor: '#f5f5f5', overflow: 'hidden' }}>
       <TrainerControlsPanel
         sessionId={sessionId}
-        onEndSession={() => navigate('/trainer/dashboard')}
+        onEndSession={handleEndSession}
+        session={session}
       />
 
       {/* 2×2 Grid */}
@@ -129,7 +139,7 @@ const SplitScreenView = () => {
                 key={client.id}
                 client={client}
                 borderColor={borderColors[idx]}
-                sessionId={sessionId} 
+                sessionId={sessionId}
               />
             ) : (
               <Box
@@ -142,7 +152,7 @@ const SplitScreenView = () => {
                   alignItems: 'center',
                   fontSize: '1.2rem',
                   color: '#999',
-                  bgcolor: '#fff'
+                  bgcolor: '#fff',
                 }}
               >
                 Empty Slot

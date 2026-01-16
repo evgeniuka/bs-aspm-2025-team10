@@ -46,7 +46,10 @@ const ExerciseCard = ({ exercise, onAdd }) => {
         </Typography>
       </CardContent>
       <Box sx={{ p: 2, pt: 0 }}>
-        <button onClick={() => onAdd(exercise)}>Add</button>
+        <button  
+          onClick={() => onAdd(exercise)}
+          >Add
+        </button>
       </Box>
     </Card>
   );

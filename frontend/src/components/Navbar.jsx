@@ -25,7 +25,19 @@ const Navbar = () => {
               variant="outlined"
               color="primary"
               onClick={handleLogout}
-              sx={{ fontWeight: 'bold' }}
+              sx={{
+            color: '#000000',
+            borderColor: '#000000',
+            borderWidth: 2,
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            fontSize: '0.7rem',
+            '&:hover': {
+              borderColor: '#000000',
+              borderWidth: 2,
+              bgcolor: '#929292'
+            }
+          }}
             >
               Logout
             </Button>

@@ -13,6 +13,8 @@ clientApi.interceptors.request.use((config) => {
   return config;
 });
 
+
+
 export const clientService = {
   getClients: () => clientApi.get('/clients'),
   createClient: (data) => clientApi.post('/clients', data),
@@ -42,10 +44,45 @@ export const clientService = {
       throw err;
     });
   },
+  
   endSession: (sessionId) => {
     return clientApi.post(`/sessions/${sessionId}/end`);
   },
   markSetComplete: (sessionId, data) => {
     return clientApi.post(`/sessions/${sessionId}/complete-set`, data);
   },
+  getClientSessions: (clientId) => {
+    return clientApi.get(`/clients/${clientId}/sessions`);
+  },
+
+  getSessionDetails: (sessionId) => {
+    return clientApi.get(`/clients/sessions/${sessionId}/details`);
+  },
+
+  getTraineeSessionDetails: (sessionId) => {
+    return clientApi.get(`/trainee/sessions/${sessionId}/details`);
+  },
+
+   getTraineeSessions: () => {
+    return clientApi.get('/trainee/sessions');
+  },
+
+  getClientAnalytics: (clientId, days = 30) => {
+    return clientApi.get(`/clients/${clientId}/analytics?days=${days}`);
+  },
+
+  getClientComparison: (clientId) => {
+    return clientApi.get(`/clients/${clientId}/analytics/comparison`);
+  },
+
+  getTraineeAnalytics: (days = 30) => {
+    return clientApi.get(`/trainee/analytics?days=${days}`);
+  },
+
+  getTraineeActiveSession: () => {
+    return clientApi.get('/trainee/session');
+  },
+
+
+  
 };
