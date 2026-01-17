@@ -2,56 +2,95 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
-from flask import jsonify, request
+from sqlalchemy.engine import make_url
 
-_db_url = os.getenv("DATABASE_URL_TEST") or os.getenv("DATABASE_URL")
-if not _db_url:
+TEST_DATABASE_URL = os.getenv("DATABASE_URL_TEST")
+if not TEST_DATABASE_URL:
     raise RuntimeError(
-        "DATABASE_URL_TEST or DATABASE_URL must be set for FC-3 tests. "
-        "CI should provide DATABASE_URL_TEST."
+        "DATABASE_URL_TEST environment variable must be set to a Postgres test database."
     )
 
-os.environ["DATABASE_URL"] = _db_url
-os.environ.setdefault("SECRET_KEY", "test-secret")
-os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret")
-os.environ.setdefault("FLASK_ENV", "testing")
+try:
+    parsed_url = make_url(TEST_DATABASE_URL)
+except Exception as exc:
+    raise RuntimeError(
+        "DATABASE_URL_TEST must be a valid SQLAlchemy Postgres URL."
+    ) from exc
+
+if not parsed_url.drivername.startswith("postgresql"):
+    raise RuntimeError("Tests require Postgres. DATABASE_URL_TEST must start with 'postgresql'.")
+
+if parsed_url.database and "test" not in parsed_url.database:
+    raise RuntimeError("Refusing to run tests against non-test database.")
+
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+
+import pytest
+from flask import jsonify, request
 
 from app import create_app
 from models import db
 from utils.jwt_utils import role_required, token_required
 
 
-@pytest.fixture()
-def app_client():
-    app, _socketio = create_app()
-    app.config["TESTING"] = True
+@pytest.fixture(scope="session")
+def app():
+    flask_app, _socketio = create_app()
+    flask_app.config.update(
+        {
+            "TESTING": True,
+        }
+    )
 
-    @app.route("/test/protected", methods=["GET"])
+    @flask_app.route("/test/protected", methods=["GET"])
     @token_required
     def protected_test_route():
         return jsonify(
             {"ok": True, "user_id": request.user_id, "role": request.user_role}
         ), 200
 
-    @app.route("/test/admin", methods=["GET"])
+    @flask_app.route("/test/admin", methods=["GET"])
     @token_required
     @role_required("trainer")
     def admin_test_route():
         return jsonify({"ok": True, "role": request.user_role}), 200
 
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
+    with flask_app.app_context():
         db.create_all()
 
-    with app.test_client() as client:
-        yield app, client
+    yield flask_app
 
-    with app.app_context():
+    with flask_app.app_context():
         db.session.remove()
         db.drop_all()
+
+
+@pytest.fixture(autouse=True)
+def clean_db(app):
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+    yield
+    with app.app_context():
+        db.session.remove()
+
+
+@pytest.fixture(autouse=True)
+def app_context(app):
+    with app.app_context():
+        yield
+
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture()
+def db_session(app):
+    with app.app_context():
+        yield db.session
