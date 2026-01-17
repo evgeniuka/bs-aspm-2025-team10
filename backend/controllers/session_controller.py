@@ -10,26 +10,38 @@ from datetime import datetime
 
 session_bp = Blueprint('session', __name__, url_prefix='/api/sessions')
 
-def validate_session_data(data):
+def validate_session_data(data, trainer_id=None):
     errors = []
+    client_ids = data.get('client_ids') or []
+    program_ids = data.get('program_ids') or []
     
-    if not data.get('client_ids') or len(data['client_ids']) < 2:
+    if not data.get('client_ids') or len(client_ids) < 2:
         errors.append('At least 2 clients are required')
-    if len(data['client_ids']) > 4:
+    if len(client_ids) > 4:
         errors.append('Maximum 4 clients allowed')
     
-    if not data.get('program_ids') or len(data['program_ids']) != len(data['client_ids']):
+    if not data.get('program_ids') or len(program_ids) != len(client_ids):
         errors.append('Each selected client must have a program assigned')
     
-    for client_id in data['client_ids']:
+    for client_id in client_ids:
         client = Client.query.filter_by(id=client_id).first()
         if not client:
             errors.append(f'Client ID {client_id} not found')
     
-    for program_id in data['program_ids']:
+    for program_id in program_ids:
         program = Program.query.get(program_id)
         if not program:
             errors.append(f'Program ID {program_id} not found')
+
+    for client_id, program_id in zip(client_ids, program_ids):
+        program = Program.query.get(program_id)
+        if not program:
+            continue
+        if program.client_id != client_id:
+            errors.append(f'Program ID {program_id} is not assigned to Client ID {client_id}')
+            continue
+        if trainer_id is not None and program.trainer_id != trainer_id:
+            errors.append(f'Program ID {program_id} is not assigned to Client ID {client_id}')
     
     return errors
 
@@ -42,7 +54,7 @@ def create_session():
     print(f"📋 Creating session for trainer {trainer_id}")
     print(f"📋 Request data: {data}")
     
-    errors = validate_session_data(data)
+    errors = validate_session_data(data, trainer_id=trainer_id)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
     
@@ -96,7 +108,9 @@ def create_session():
 @token_required
 def get_session(session_id):
     trainer_id = request.user_id
-    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first()
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
     
     clients_data = []
     for sc in session.clients:
@@ -115,6 +129,10 @@ def get_session(session_id):
         } for pe in program_exercises]
 
         clients_data.append({
+            'client_id': sc.client.id,
+            'client_name': sc.client.name,
+            'program_id': sc.program.id,
+            'program_name': sc.program.name,
             'id': sc.client.id,      
             'name': sc.client.name,           
             'program': {
@@ -230,7 +248,9 @@ def complete_set(session_id):
 @token_required
 def end_session(session_id):
     trainer_id = request.user_id
-    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first()
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
     
     if session.status == 'completed':
         return jsonify({'error': 'Session already ended'}), 400
@@ -277,5 +297,6 @@ def end_session(session_id):
     
     return jsonify({
         'success': True,
+        'message': 'Session ended successfully',
         'summary': summary
     }), 200
