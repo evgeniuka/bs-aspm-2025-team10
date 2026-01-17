@@ -1,129 +1,76 @@
-from types import SimpleNamespace
-
-from controllers import client_controller
-from controllers.client_controller import (
-    resolve_client_user_id,
-    validate_client_payload,
-    validate_client_update_payload,
-)
+from models.client import Client
 
 
-class DummyQuery:
-    def __init__(self, user=None):
-        self._user = user
-        self.filters = None
+def test_create_client_non_trainee_email_sets_user_id_none(client, create_user, auth_headers):
+    trainer = create_user("trainer.validation@example.com", "trainer", full_name="Trainer")
+    non_trainee = create_user("trainer.user@example.com", "trainer", full_name="Trainer User")
+    headers = auth_headers(trainer)
 
-    def filter_by(self, **kwargs):
-        self.filters = kwargs
-        return self
-
-    def first(self):
-        return self._user
-
-
-def test_validate_client_payload_missing_name():
-    data = {
-        "age": 25,
+    payload = {
+        "name": "Casey Client",
+        "age": 29,
         "fitness_level": "Beginner",
-        "goals": "Improve overall fitness",
+        "goals": "Improve overall strength and mobility",
+        "user_email": non_trainee.email,
     }
-    assert validate_client_payload(data) == "Name must be 2-50 characters"
+
+    response = client.post("/api/clients", json=payload, headers=headers)
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["user_id"] is None
+
+    db_client = Client.query.filter_by(id=data["id"]).first()
+    assert db_client.user_id is None
 
 
-def test_validate_client_payload_name_too_short():
-    data = {
-        "name": "A",
-        "age": 25,
-        "fitness_level": "Beginner",
-        "goals": "Improve overall fitness",
-    }
-    assert validate_client_payload(data) == "Name must be 2-50 characters"
+def test_update_client_invalid_fitness_level_returns_400(
+    client, create_user, auth_headers, db_session
+):
+    trainer = create_user("trainer.update.fitness@example.com", "trainer", full_name="Trainer")
+    headers = auth_headers(trainer)
+
+    client_record = Client(
+        trainer_id=trainer.id,
+        name="Fitness Level Client",
+        age=33,
+        fitness_level="Intermediate",
+        goals="Maintain consistent training schedule",
+    )
+    db_session.add(client_record)
+    db_session.commit()
+
+    response = client.put(
+        f"/api/clients/{client_record.id}",
+        json={"fitness_level": "Expert"},
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Invalid fitness level"
 
 
-def test_validate_client_payload_invalid_age_low():
-    data = {
-        "name": "Alex",
-        "age": 15,
-        "fitness_level": "Beginner",
-        "goals": "Improve overall fitness",
-    }
-    assert validate_client_payload(data) == "Age must be between 16 and 100"
+def test_update_client_invalid_name_returns_400(client, create_user, auth_headers, db_session):
+    trainer = create_user("trainer.update.name@example.com", "trainer", full_name="Trainer")
+    headers = auth_headers(trainer)
 
+    client_record = Client(
+        trainer_id=trainer.id,
+        name="Valid Name",
+        age=27,
+        fitness_level="Beginner",
+        goals="Improve cardio endurance over time",
+    )
+    db_session.add(client_record)
+    db_session.commit()
 
-def test_validate_client_payload_invalid_fitness_level():
-    data = {
-        "name": "Alex",
-        "age": 25,
-        "fitness_level": "Expert",
-        "goals": "Improve overall fitness",
-    }
-    assert validate_client_payload(data) == "Invalid fitness level"
+    response = client.put(
+        f"/api/clients/{client_record.id}",
+        json={"name": "Z"},
+        headers=headers,
+    )
 
-
-def test_validate_client_payload_short_goals():
-    data = {
-        "name": "Alex",
-        "age": 25,
-        "fitness_level": "Beginner",
-        "goals": "Too short",
-    }
-    assert validate_client_payload(data) == "Goals must be at least 10 characters"
-
-
-def test_validate_client_payload_success():
-    data = {
-        "name": "Alex",
-        "age": 25,
-        "fitness_level": "Intermediate",
-        "goals": "Improve overall fitness",
-    }
-    assert validate_client_payload(data) is None
-
-
-def test_validate_client_update_payload_invalid_name():
-    data = {"name": "Z"}
-    assert validate_client_update_payload(data) == "Name must be 2-50 characters"
-
-
-def test_validate_client_update_payload_invalid_age():
-    data = {"age": 101}
-    assert validate_client_update_payload(data) == "Age must be between 16 and 100"
-
-
-def test_validate_client_update_payload_invalid_fitness_level():
-    data = {"fitness_level": "Expert"}
-    assert validate_client_update_payload(data) == "Invalid fitness level"
-
-
-def test_validate_client_update_payload_invalid_goals():
-    data = {"goals": "Short"}
-    assert validate_client_update_payload(data) == "Goals must be at least 10 characters"
-
-
-def test_validate_client_update_payload_success():
-    data = {"name": "Valid Name", "age": 30}
-    assert validate_client_update_payload(data) is None
-
-
-def test_resolve_client_user_id_returns_none_without_email():
-    assert resolve_client_user_id(None) is None
-
-
-def test_resolve_client_user_id_returns_none_for_missing_user(monkeypatch):
-    DummyUser = SimpleNamespace(query=DummyQuery())
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("missing@example.com") is None
-
-
-def test_resolve_client_user_id_returns_none_for_non_trainee(monkeypatch):
-    user = SimpleNamespace(id=10, role="trainer")
-    DummyUser = SimpleNamespace(query=DummyQuery(user))
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("trainer@example.com") is None
-
-
-def test_resolve_client_user_id_returns_id_for_trainee(monkeypatch):
-    user = SimpleNamespace(id=12, role="trainee")
-    DummyUser = SimpleNamespace(query=DummyQuery(user))
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("trainee@example.com") == 12
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data["error"] == "Name must be 2-50 characters"

@@ -31,7 +31,9 @@ if str(BACKEND_DIR) not in sys.path:
 
 import pytest
 from app import create_app
-from models.user import db
+from models import db
+from models.user import User
+from utils.jwt_utils import generate_token
 
 
 @pytest.fixture(scope="session")
@@ -72,3 +74,24 @@ def client(app):
 def db_session(app):
     with app.app_context():
         yield db.session
+
+
+@pytest.fixture()
+def create_user(db_session):
+    def _create_user(email, role, full_name="Test User", password="password123"):
+        user = User(email=email, full_name=full_name, role=role)
+        user.set_password(password)
+        db_session.add(user)
+        db_session.commit()
+        return user
+
+    return _create_user
+
+
+@pytest.fixture()
+def auth_headers():
+    def _auth_headers(user):
+        token = generate_token(user.id, user.role)
+        return {"Authorization": f"Bearer {token}"}
+
+    return _auth_headers
