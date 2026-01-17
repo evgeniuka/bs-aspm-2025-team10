@@ -2,13 +2,14 @@ from flask import Blueprint, request, jsonify
 from models import db
 from models.user import User
 from models.client import Client
-from utils.jwt_utils import token_required
+from utils.jwt_utils import token_required, role_required
 from utils.validation import validate_client_create_payload, validate_client_update_payload
 
 client_bp = Blueprint('client', __name__, url_prefix='/api/clients')
 
 @client_bp.route('', methods=['GET'])
 @token_required
+@role_required('trainer')
 def get_clients():
     """GET /api/clients - Get all ACTIVE clients for current trainer"""
     trainer_id = request.user_id
@@ -17,6 +18,7 @@ def get_clients():
 
 @client_bp.route('', methods=['POST'])
 @token_required
+@role_required('trainer')
 def create_client():
     """POST /api/clients - Create new client for current trainer"""
     try:
@@ -59,10 +61,13 @@ def create_client():
 
 @client_bp.route('/<int:client_id>', methods=['PUT'])
 @token_required
+@role_required('trainer')
 def update_client(client_id):
     """PUT /api/clients/<id> - Update client"""
     trainer_id = request.user_id
-    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first_or_404()
+    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
     
     data = request.get_json()
     error = validate_client_update_payload(data)
@@ -82,16 +87,20 @@ def update_client(client_id):
 
 @client_bp.route('/<int:client_id>/deactivate', methods=['POST'])
 @token_required
+@role_required('trainer')
 def deactivate_client(client_id):
     """POST /api/clients/<id>/deactivate - Deactivate (soft delete) client"""
     trainer_id = request.user_id
-    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first_or_404()
+    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
     client.active = False
     db.session.commit()
     return jsonify({'message': 'Client deactivated'}), 200
 
 @client_bp.route('/my', methods=['GET'])
 @token_required
+@role_required('trainee')
 def get_my_client():
     """GET /api/clients/my — для Trainee Dashboard"""
     user_id = request.user_id

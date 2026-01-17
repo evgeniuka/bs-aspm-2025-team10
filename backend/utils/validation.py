@@ -5,6 +5,8 @@ def validate_login_payload(data):
 
 
 def validate_register_payload(data):
+    if not data:
+        return "Missing required fields"
     required_fields = ["email", "password", "full_name", "role"]
     if not all(field in data for field in required_fields):
         return "Missing required fields"
