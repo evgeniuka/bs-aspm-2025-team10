@@ -1,34 +1,53 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from models import db
+from models.user import User
 from models.client import Client
-from models.program import Program, ProgramExercise 
+from models.program import Program
 from models.session import Session, SessionClient
 from utils.jwt_utils import token_required
 
 session_bp = Blueprint('session', __name__, url_prefix='/api/sessions')
 
-def validate_session_data(data):
+def validate_session_data(data, trainer_id=None):
     errors = []
-    
-    if not data.get('client_ids') or len(data['client_ids']) < 2:
+
+    if not data:
+        return ['Invalid request payload']
+
+    client_ids = data.get('client_ids') or []
+    program_ids = data.get('program_ids') or []
+
+    if len(client_ids) < 2:
         errors.append('At least 2 clients are required')
-    if len(data['client_ids']) > 4:
+    if len(client_ids) > 4:
         errors.append('Maximum 4 clients allowed')
-    
-    if not data.get('program_ids') or len(data['program_ids']) != len(data['client_ids']):
+
+    if not program_ids or len(program_ids) != len(client_ids):
         errors.append('Each selected client must have a program assigned')
-    
-    for client_id in data['client_ids']:
+
+    client_lookup = {}
+    for client_id in client_ids:
         client = Client.query.filter_by(id=client_id).first()
         if not client:
             errors.append(f'Client ID {client_id} not found')
-    
-    for program_id in data['program_ids']:
-        program = db.session.get(Program, program_id)
+            continue
+        if trainer_id and client.trainer_id != trainer_id:
+            errors.append(f'Client ID {client_id} not assigned to trainer')
+            continue
+        client_lookup[client_id] = client
+
+    for client_id, program_id in zip(client_ids, program_ids):
+        program = Program.query.get(program_id)
         if not program:
             errors.append(f'Program ID {program_id} not found')
-    
+            continue
+        if trainer_id and program.trainer_id != trainer_id:
+            errors.append(f'Program ID {program_id} not assigned to trainer')
+            continue
+        if program.client_id != client_id:
+            errors.append(f'Program ID {program_id} is not assigned to Client ID {client_id}')
+
     return errors
 
 @session_bp.route('', methods=['POST'])
@@ -37,7 +56,7 @@ def create_session():
     trainer_id = request.user_id
     data = request.get_json()
     
-    errors = validate_session_data(data)
+    errors = validate_session_data(data, trainer_id=trainer_id)
     if errors:
         return jsonify({'error': 'Validation failed', 'details': errors}), 400
     
@@ -66,54 +85,40 @@ def create_session():
 @session_bp.route('/<int:session_id>', methods=['GET'])
 @token_required
 def get_session(session_id):
-    trainer_id = request.user_id
-    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    session = Session.query.get(session_id)
+    if not session or session.trainer_id != request.user_id:
+        return jsonify({'error': 'Session not found'}), 404
     
-    clients_data = []
+    result = {
+        'id': session.id,
+        'trainer_id': session.trainer_id,
+        'start_time': session.start_time.isoformat(),
+        'status': session.status,
+        'clients': []
+    }
+    
     for sc in session.clients:
-        program_exercises = ProgramExercise.query.filter_by(program_id=sc.program_id).all()
-        exercises = [{
-            'id': pe.exercise.id,
-            'name': pe.exercise.name,
-            'category': pe.exercise.category,
-            'difficulty': pe.exercise.difficulty,
-            'description': pe.exercise.description,
-            'equipment': pe.exercise.equipment,
-            'sets': pe.sets,
-            'reps': pe.reps,
-            'weight_kg': pe.weight_kg,
-            'rest_seconds': pe.rest_seconds
-        } for pe in program_exercises]
-
-        clients_data.append({
-            'id': sc.client.id,      
-            'name': sc.client.name,           
-            'program': {
-                'id': sc.program.id,
-                'name': sc.program.name,
-                'exercises': exercises
-            },
+        result['clients'].append({
+            'client_id': sc.client_id,
+            'client_name': sc.client.name,
+            'program_id': sc.program_id,
+            'program_name': sc.program.name,
             'current_exercise_index': sc.current_exercise_index,
             'current_set': sc.current_set,
             'status': sc.status
         })
+    
+    return jsonify(result), 200
 
-    return jsonify({
-        'id': session.id,
-        'trainer_id': session.trainer_id,
-        'status': session.status,
-        'created_at': session.start_time.isoformat(),
-        'clients': clients_data
-    }), 200
 
 @session_bp.route('/<int:session_id>/end', methods=['POST'])
 @token_required
 def end_session(session_id):
-    trainer_id = request.user_id
-    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
-    
+    session = Session.query.get(session_id)
+    if not session or session.trainer_id != request.user_id:
+        return jsonify({'error': 'Session not found'}), 404
+
     session.status = 'completed'
     session.end_time = datetime.utcnow()
     db.session.commit()
-    
     return jsonify({'message': 'Session ended successfully'}), 200

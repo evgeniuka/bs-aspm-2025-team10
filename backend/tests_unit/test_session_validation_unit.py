@@ -1,90 +1,106 @@
-import types
-
-import pytest
-
 from controllers import session_controller
 
 
-def _patch_client_query(monkeypatch, existing_ids):
-    class DummyQuery:
-        def __init__(self):
-            self._client_id = None
+class DummyClientQuery:
+    def __init__(self, existing_ids):
+        self._existing_ids = set(existing_ids)
+        self._last_id = None
 
-        def filter_by(self, id):
-            self._client_id = id
-            return self
+    def filter_by(self, **kwargs):
+        self._last_id = kwargs.get("id")
+        return self
 
-        def first(self):
-            if self._client_id in existing_ids:
-                return types.SimpleNamespace(id=self._client_id)
-            return None
-
-    class DummyClient:
-        query = DummyQuery()
-
-    monkeypatch.setattr(session_controller, "Client", DummyClient)
-
-
-def _patch_program_get(monkeypatch, existing_ids):
-    def fake_get(model, program_id):
-        if program_id in existing_ids:
-            return types.SimpleNamespace(id=program_id)
+    def first(self):
+        if self._last_id in self._existing_ids:
+            return object()
         return None
 
-    monkeypatch.setattr(session_controller.db, "session", types.SimpleNamespace(get=fake_get))
+
+class DummyProgramQuery:
+    def __init__(self, existing_ids):
+        self._existing_ids = set(existing_ids)
+
+    def get(self, program_id):
+        if program_id in self._existing_ids:
+            program = type("Program", (), {})()
+            program.client_id = {10: 1, 20: 2}.get(program_id)
+            program.trainer_id = 99
+            return program
+        return None
 
 
-def test_validate_session_data_requires_min_clients(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1})
-    _patch_program_get(monkeypatch, existing_ids={10})
-
-    errors = session_controller.validate_session_data({"client_ids": [1], "program_ids": [10]})
-
-    assert "At least 2 clients are required" in errors
+class DummyClientModel:
+    def __init__(self, query):
+        self.query = query
 
 
-def test_validate_session_data_limits_max_clients(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1, 2, 3, 4, 5})
-    _patch_program_get(monkeypatch, existing_ids={10, 11, 12, 13, 14})
+class DummyProgramModel:
+    def __init__(self, query):
+        self.query = query
 
-    errors = session_controller.validate_session_data(
-        {"client_ids": [1, 2, 3, 4, 5], "program_ids": [10, 11, 12, 13, 14]}
+
+def _base_payload():
+    return {"client_ids": [1, 2], "program_ids": [10, 20]}
+
+
+def _patch_queries(monkeypatch, client_ids, program_ids):
+    monkeypatch.setattr(
+        session_controller,
+        "Client",
+        DummyClientModel(DummyClientQuery(existing_ids=client_ids)),
+    )
+    monkeypatch.setattr(
+        session_controller,
+        "Program",
+        DummyProgramModel(DummyProgramQuery(existing_ids=program_ids)),
     )
 
-    assert "Maximum 4 clients allowed" in errors
 
-
-def test_validate_session_data_requires_program_per_client(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1, 2})
-    _patch_program_get(monkeypatch, existing_ids={10})
-
-    errors = session_controller.validate_session_data({"client_ids": [1, 2], "program_ids": [10]})
-
+def test_validate_session_data_requires_clients_and_programs(monkeypatch):
+    _patch_queries(monkeypatch, client_ids=set(), program_ids=set())
+    payload = {"client_ids": [], "program_ids": []}
+    errors = session_controller.validate_session_data(payload)
+    assert "At least 2 clients are required" in errors
     assert "Each selected client must have a program assigned" in errors
 
 
-def test_validate_session_data_missing_client(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1})
-    _patch_program_get(monkeypatch, existing_ids={10, 11})
+def test_validate_session_data_rejects_too_many_clients(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2, 3, 4, 5}, program_ids={10, 11, 12, 13, 14})
+    payload = {"client_ids": [1, 2, 3, 4, 5], "program_ids": [10, 11, 12, 13, 14]}
+    errors = session_controller.validate_session_data(payload)
+    assert "Maximum 4 clients allowed" in errors
 
-    errors = session_controller.validate_session_data({"client_ids": [1, 2], "program_ids": [10, 11]})
 
+def test_validate_session_data_requires_matching_programs(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2}, program_ids={10})
+    payload = {"client_ids": [1, 2], "program_ids": [10]}
+    errors = session_controller.validate_session_data(payload)
+    assert "Each selected client must have a program assigned" in errors
+
+
+def test_validate_session_data_flags_missing_clients(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1}, program_ids={10, 20})
+    payload = _base_payload()
+    errors = session_controller.validate_session_data(payload)
     assert "Client ID 2 not found" in errors
 
 
-def test_validate_session_data_missing_program(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1, 2})
-    _patch_program_get(monkeypatch, existing_ids={10})
-
-    errors = session_controller.validate_session_data({"client_ids": [1, 2], "program_ids": [10, 11]})
-
-    assert "Program ID 11 not found" in errors
+def test_validate_session_data_flags_missing_programs(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2}, program_ids={10})
+    payload = _base_payload()
+    errors = session_controller.validate_session_data(payload)
+    assert "Program ID 20 not found" in errors
 
 
-def test_validate_session_data_success(monkeypatch):
-    _patch_client_query(monkeypatch, existing_ids={1, 2})
-    _patch_program_get(monkeypatch, existing_ids={10, 11})
-
-    errors = session_controller.validate_session_data({"client_ids": [1, 2], "program_ids": [10, 11]})
-
+def test_validate_session_data_accepts_valid_payload(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2}, program_ids={10, 20})
+    payload = _base_payload()
+    errors = session_controller.validate_session_data(payload)
     assert errors == []
+
+
+def test_validate_session_data_rejects_program_mismatch(monkeypatch):
+    _patch_queries(monkeypatch, client_ids={1, 2}, program_ids={10, 20})
+    payload = {"client_ids": [2, 1], "program_ids": [10, 20]}
+    errors = session_controller.validate_session_data(payload)
+    assert "Program ID 10 is not assigned to Client ID 2" in errors
