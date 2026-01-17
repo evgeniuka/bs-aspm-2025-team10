@@ -82,18 +82,11 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
     }
 
 
-def _join_session_room(socketio, test_client, session_id):
-    sid = test_client.get_sid("/") if hasattr(test_client, "get_sid") else None
-    if not sid:
-        eio_sid = getattr(test_client, "eio_sid", None)
-        if eio_sid is None:
-            eio_sid = getattr(test_client, "sid", None)
-        manager = socketio.server.manager
-        if eio_sid and hasattr(manager, "sid_from_eio_sid"):
-            sid = manager.sid_from_eio_sid(eio_sid, "/")
-        else:
-            sid = eio_sid
-    socketio.server.enter_room(sid, f"session_{session_id}", namespace="/")
+def _join_session_room(test_client, session_id, trainee_id=None):
+    if trainee_id is None:
+        test_client.emit("join_session", {"session_id": session_id})
+    else:
+        test_client.emit("trainee_join_session", {"session_id": session_id, "trainee_id": trainee_id})
 
 
 def _find_event(received, name):
@@ -139,8 +132,8 @@ def test_fc7_mark_complete_broadcasts_session_update(client, app, trainer_token)
     trainee_http = app.test_client()
     trainee_ws = SocketIOTestClient(app, socketio, flask_test_client=trainee_http)
 
-    _join_session_room(socketio, trainer_ws, seeded["session_id"])
-    _join_session_room(socketio, trainee_ws, seeded["session_id"])
+    _join_session_room(trainer_ws, seeded["session_id"])
+    _join_session_room(trainee_ws, seeded["session_id"], trainee_id=seeded["client_id"])
 
     trainer_ws.get_received()
     trainee_ws.get_received()
