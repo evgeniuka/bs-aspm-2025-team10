@@ -83,7 +83,16 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
 
 
 def _join_session_room(socketio, test_client, session_id):
-    sid = test_client.get_sid("/") if hasattr(test_client, "get_sid") else test_client.eio_sid
+    sid = test_client.get_sid("/") if hasattr(test_client, "get_sid") else None
+    if not sid:
+        eio_sid = getattr(test_client, "eio_sid", None)
+        if eio_sid is None:
+            eio_sid = getattr(test_client, "sid", None)
+        manager = socketio.server.manager
+        if eio_sid and hasattr(manager, "sid_from_eio_sid"):
+            sid = manager.sid_from_eio_sid(eio_sid, "/")
+        else:
+            sid = eio_sid
     socketio.server.enter_room(sid, f"session_{session_id}", namespace="/")
 
 
