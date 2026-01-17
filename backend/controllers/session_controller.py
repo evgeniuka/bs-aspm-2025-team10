@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 from models import db
 from models.user import User
 from models.client import Client
@@ -84,8 +85,8 @@ def create_session():
 @session_bp.route('/<int:session_id>', methods=['GET'])
 @token_required
 def get_session(session_id):
-    session = Session.query.get_or_404(session_id)
-    if session.trainer_id != request.user_id:
+    session = Session.query.get(session_id)
+    if not session or session.trainer_id != request.user_id:
         return jsonify({'error': 'Session not found'}), 404
     
     result = {
@@ -108,3 +109,16 @@ def get_session(session_id):
         })
     
     return jsonify(result), 200
+
+
+@session_bp.route('/<int:session_id>/end', methods=['POST'])
+@token_required
+def end_session(session_id):
+    session = Session.query.get(session_id)
+    if not session or session.trainer_id != request.user_id:
+        return jsonify({'error': 'Session not found'}), 404
+
+    session.status = 'completed'
+    session.end_time = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'message': 'Session ended successfully'}), 200

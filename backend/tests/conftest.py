@@ -34,7 +34,8 @@ from flask import jsonify, request
 
 from app import create_app
 from models import db
-from utils.jwt_utils import role_required, token_required
+from models.user import User
+from utils.jwt_utils import generate_token, role_required, token_required
 
 
 @pytest.fixture(scope="session")
@@ -94,3 +95,19 @@ def client(app):
 def db_session(app):
     with app.app_context():
         yield db.session
+
+
+@pytest.fixture()
+def trainer_token(app):
+    with app.app_context():
+        user = User(
+            email="trainer.token@example.com",
+            full_name="Trainer Token",
+            role="trainer",
+            is_active=True,
+        )
+        user.set_password("password123")
+        db.session.add(user)
+        db.session.commit()
+        token = generate_token(user.id, user.role)
+        return {"user_id": user.id, "token": token}
