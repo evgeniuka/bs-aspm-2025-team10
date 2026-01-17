@@ -25,6 +25,11 @@ def validate_program_data(data):
         errors.append('Maximum 20 exercises allowed')
     
     for ex in exercises:
+        if 'exercise_id' not in ex:
+            errors.append('Exercise ID is required')
+            continue
+        if not isinstance(ex.get('exercise_id'), int):
+            errors.append('Exercise ID must be an integer')
         if not (1 <= ex.get('sets', 0) <= 10):
             errors.append(f'Sets must be between 1-10 for exercise')
         if not (1 <= ex.get('reps', 0) <= 50):
@@ -79,7 +84,7 @@ def create_program():
         db.session.add(program_ex)
     
     db.session.commit()
-    return jsonify({'message': 'Program created', 'program_id': program.id}), 201
+    return jsonify({'message': 'Program created', 'program_id': program.id, 'id': program.id}), 201
 
 @program_bp.route('', methods=['GET'])
 @token_required
@@ -88,7 +93,7 @@ def get_programs():
     client_id = request.args.get('client_id')
     
     if not client_id:
-        return jsonify({'error': 'client_id is required'}), 400
+        return jsonify({'error': 'client_id query param is required'}), 400
     
     client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
     if not client:
@@ -100,8 +105,22 @@ def get_programs():
         exercises = ProgramExercise.query.filter_by(program_id=p.id).all()
         result.append({
             'id': p.id,
+            'client_id': p.client_id,
+            'trainer_id': p.trainer_id,
             'name': p.name,
-            'exercises': [{'id': ex.id, 'name': ex.exercise.name} for ex in exercises]  
+            'notes': p.notes,
+            'exercises': [
+                {
+                    'id': ex.id,
+                    'exercise_id': ex.exercise_id,
+                    'order': ex.order,
+                    'sets': ex.sets,
+                    'reps': ex.reps,
+                    'weight_kg': ex.weight_kg,
+                    'rest_seconds': ex.rest_seconds,
+                }
+                for ex in exercises
+            ],
         })
     
     return jsonify(result), 200
