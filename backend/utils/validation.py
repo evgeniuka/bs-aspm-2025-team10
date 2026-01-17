@@ -18,6 +18,8 @@ def validate_register_payload(data):
 
 
 def validate_client_create_payload(data):
+    if not isinstance(data, dict):
+        return "Name must be 2-50 characters"
     if not data.get("name") or len(data["name"]) < 2 or len(data["name"]) > 50:
         return "Name must be 2-50 characters"
     if not (16 <= data.get("age", 0) <= 100):
@@ -30,6 +32,8 @@ def validate_client_create_payload(data):
 
 
 def validate_client_update_payload(data):
+    if not isinstance(data, dict):
+        return "No data provided"
     if "name" in data:
         if len(data["name"]) < 2 or len(data["name"]) > 50:
             return "Name must be 2-50 characters"

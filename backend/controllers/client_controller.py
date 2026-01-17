@@ -3,6 +3,7 @@ from models import db
 from models.user import User
 from models.client import Client
 from utils.jwt_utils import role_required, token_required
+from utils.validation import validate_client_create_payload, validate_client_update_payload
 
 client_bp = Blueprint('client', __name__, url_prefix='/api/clients')
 
@@ -25,16 +26,10 @@ def create_client():
         if not trainer_id:
             return jsonify({'error': 'Invalid or missing token'}), 401
         
-        data = request.get_json()
-        
-        if not data.get('name') or len(data['name']) < 2 or len(data['name']) > 50:
-            return jsonify({'error': 'Name must be 2-50 characters'}), 400
-        if not (16 <= data.get('age', 0) <= 100):
-            return jsonify({'error': 'Age must be between 16 and 100'}), 400
-        if data.get('fitness_level') not in ['Beginner', 'Intermediate', 'Advanced']:
-            return jsonify({'error': 'Invalid fitness level'}), 400
-        if not data.get('goals') or len(data['goals']) < 10:
-            return jsonify({'error': 'Goals must be at least 10 characters'}), 400
+        data = request.get_json() or {}
+        error = validate_client_create_payload(data)
+        if error:
+            return jsonify({'error': error}), 400
         
         active_count = Client.query.filter_by(trainer_id=trainer_id, active=True).count()
         # if active_count >= 4:
@@ -73,22 +68,17 @@ def update_client(client_id):
     if not client:
         return jsonify({'error': 'Client not found'}), 404
     
-    data = request.get_json()
+    data = request.get_json() or {}
+    error = validate_client_update_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
     if 'name' in data:
-        if len(data['name']) < 2 or len(data['name']) > 50:
-            return jsonify({'error': 'Name must be 2-50 characters'}), 400
         client.name = data['name']
     if 'age' in data:
-        if not (16 <= data['age'] <= 100):
-            return jsonify({'error': 'Age must be between 16 and 100'}), 400
         client.age = data['age']
     if 'fitness_level' in data:
-        if data['fitness_level'] not in ['Beginner', 'Intermediate', 'Advanced']:
-            return jsonify({'error': 'Invalid fitness level'}), 400
         client.fitness_level = data['fitness_level']
     if 'goals' in data:
-        if len(data['goals']) < 10:
-            return jsonify({'error': 'Goals must be at least 10 characters'}), 400
         client.goals = data['goals']
     
     db.session.commit()

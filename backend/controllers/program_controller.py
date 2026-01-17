@@ -11,6 +11,9 @@ program_bp = Blueprint('program', __name__, url_prefix='/api/programs')
 
 def validate_program_data(data):
     errors = []
+
+    if not isinstance(data, dict):
+        return ['Invalid request payload']
     
     if not data.get('name') or len(data['name']) < 3 or len(data['name']) > 100:
         errors.append('Program name must be 3-100 characters')
@@ -45,7 +48,7 @@ def validate_program_data(data):
 @token_required
 def create_program():
     trainer_id = request.user_id
-    data = request.get_json()
+    data = request.get_json() or {}
     
 
     errors = validate_program_data(data)
@@ -84,7 +87,7 @@ def create_program():
         db.session.add(program_ex)
     
     db.session.commit()
-    return jsonify({'message': 'Program created', 'program_id': program.id}), 201
+    return jsonify({'message': 'Program created', 'program_id': program.id, 'id': program.id}), 201
 
 @program_bp.route('', methods=['GET'])
 @token_required
@@ -93,7 +96,7 @@ def get_programs():
     client_id = request.args.get('client_id')
     
     if not client_id:
-        return jsonify({'error': 'client_id is required'}), 400
+        return jsonify({'error': 'client_id query param is required'}), 400
     
     client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
     if not client:
@@ -102,39 +105,30 @@ def get_programs():
     programs = Program.query.filter_by(client_id=client_id).all()
     result = []
     for p in programs:
-        exercises = ProgramExercise.query.filter_by(program_id=p.id).all()
-        result.append({
-            'id': p.id,
-            'client_id': p.client_id,
-            'trainer_id': p.trainer_id,
-            'name': p.name,
-            'notes': p.notes,
-            'exercises': [
-                {
-                    'id': ex.id,
-                    'exercise_id': ex.exercise_id,
-                    'order': ex.order,
-                    'sets': ex.sets,
-                    'reps': ex.reps,
-                    'weight_kg': ex.weight_kg,
-                    'rest_seconds': ex.rest_seconds,
-                }
-                for ex in exercises
-            ],
-            'notes': p.notes,
-            'created_at': p.created_at.isoformat(),
-            'exercises': [{
-                'id': pe.id,
-                'exercise_id': pe.exercise_id,
-                'name': pe.exercise.name,
-                'category': pe.exercise.category,
-                'sets': pe.sets,
-                'reps': pe.reps,
-                'weight_kg': pe.weight_kg,
-                'rest_seconds': pe.rest_seconds,
-                'notes': pe.notes,
-                'order': pe.order
-            } for pe in program_exercises]
-        })
+        exercises = ProgramExercise.query.filter_by(program_id=p.id).order_by(
+            ProgramExercise.order
+        ).all()
+        result.append(
+            {
+                'id': p.id,
+                'client_id': p.client_id,
+                'trainer_id': p.trainer_id,
+                'name': p.name,
+                'notes': p.notes,
+                'created_at': p.created_at.isoformat(),
+                'exercises': [
+                    {
+                        'id': ex.id,
+                        'exercise_id': ex.exercise_id,
+                        'order': ex.order,
+                        'sets': ex.sets,
+                        'reps': ex.reps,
+                        'weight_kg': ex.weight_kg,
+                        'rest_seconds': ex.rest_seconds,
+                    }
+                    for ex in exercises
+                ],
+            }
+        )
     
     return jsonify(result), 200
