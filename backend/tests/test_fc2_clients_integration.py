@@ -1,6 +1,6 @@
 from models import db
-from models.user import User
 from models.client import Client
+from models.user import User
 
 
 def _create_user(email, role, full_name="Test User", password="password123"):
@@ -26,7 +26,7 @@ def test_trainer_can_create_client(client):
         "name": "Alex Client",
         "age": 28,
         "fitness_level": "Intermediate",
-        "goals": "Build strength and endurance"
+        "goals": "Build strength and endurance",
     }
     response = client.post("/api/clients", json=payload, headers=headers)
 
@@ -56,7 +56,7 @@ def test_trainer_can_list_clients(client):
         name="Active Client",
         age=30,
         fitness_level="Beginner",
-        goals="Improve flexibility and balance"
+        goals="Improve flexibility and balance",
     )
     inactive_client = Client(
         trainer_id=trainer.id,
@@ -64,7 +64,7 @@ def test_trainer_can_list_clients(client):
         age=34,
         fitness_level="Advanced",
         goals="Run a marathon next year",
-        active=False
+        active=False,
     )
     db.session.add_all([active_client, inactive_client])
     db.session.commit()
@@ -74,7 +74,7 @@ def test_trainer_can_list_clients(client):
         name="Other Trainer Client",
         age=29,
         fitness_level="Intermediate",
-        goals="Keep training plan consistent"
+        goals="Keep training plan consistent",
     )
     db.session.add(other_client)
     db.session.commit()
@@ -98,7 +98,7 @@ def test_create_client_missing_required_field_returns_400(client):
     payload = {
         "age": 22,
         "fitness_level": "Beginner",
-        "goals": "Lose weight safely"
+        "goals": "Lose weight safely",
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
@@ -116,7 +116,7 @@ def test_create_client_invalid_field_format_returns_400(client):
         "name": "Casey Client",
         "age": 27,
         "fitness_level": "Expert",
-        "goals": "Increase endurance over time"
+        "goals": "Increase endurance over time",
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
@@ -134,7 +134,7 @@ def test_create_client_invalid_age_returns_400(client):
         "name": "Jordan Client",
         "age": 12,
         "fitness_level": "Beginner",
-        "goals": "Improve overall fitness safely"
+        "goals": "Improve overall fitness safely",
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
@@ -152,7 +152,7 @@ def test_create_client_short_goals_returns_400(client):
         "name": "Morgan Client",
         "age": 26,
         "fitness_level": "Advanced",
-        "goals": "Short"
+        "goals": "Short",
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
@@ -172,7 +172,7 @@ def test_create_client_links_existing_trainee_user(client):
         "age": 31,
         "fitness_level": "Intermediate",
         "goals": "Build strength for upcoming race",
-        "user_email": trainee.email
+        "user_email": trainee.email,
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)
@@ -205,7 +205,7 @@ def test_trainer_can_update_client_and_persist_changes(client):
         name="Original Name",
         age=29,
         fitness_level="Beginner",
-        goals="Increase mobility and stamina"
+        goals="Increase mobility and stamina",
     )
     db.session.add(client_record)
     db.session.commit()
@@ -214,7 +214,7 @@ def test_trainer_can_update_client_and_persist_changes(client):
         "name": "Updated Name",
         "age": 31,
         "fitness_level": "Intermediate",
-        "goals": "Improve mobility and build endurance"
+        "goals": "Improve mobility and build endurance",
     }
 
     response = client.put(f"/api/clients/{client_record.id}", json=payload, headers=headers)
@@ -242,7 +242,7 @@ def test_update_client_invalid_age_returns_400(client):
         name="Age Test",
         age=25,
         fitness_level="Advanced",
-        goals="Improve overall performance metrics"
+        goals="Improve overall performance metrics",
     )
     db.session.add(client_record)
     db.session.commit()
@@ -250,7 +250,7 @@ def test_update_client_invalid_age_returns_400(client):
     response = client.put(
         f"/api/clients/{client_record.id}",
         json={"age": 10},
-        headers=headers
+        headers=headers,
     )
 
     assert response.status_code == 400
@@ -268,7 +268,7 @@ def test_trainer_cannot_update_other_trainers_client(client):
         name="Other Client",
         age=40,
         fitness_level="Beginner",
-        goals="Maintain healthy routine"
+        goals="Maintain healthy routine",
     )
     db.session.add(other_client)
     db.session.commit()
@@ -276,7 +276,7 @@ def test_trainer_cannot_update_other_trainers_client(client):
     response = client.put(
         f"/api/clients/{other_client.id}",
         json={"name": "Unauthorized Update"},
-        headers=headers
+        headers=headers,
     )
 
     assert response.status_code == 404
@@ -293,7 +293,7 @@ def test_trainer_can_deactivate_client(client):
         name="Deactivate Client",
         age=33,
         fitness_level="Intermediate",
-        goals="Maintain conditioning for season"
+        goals="Maintain conditioning for season",
     )
     db.session.add(client_record)
     db.session.commit()
@@ -309,7 +309,11 @@ def test_trainer_can_deactivate_client(client):
 
 
 def test_deactivate_client_not_found_returns_404(client):
-    trainer = _create_user("trainer.deactivate.missing@example.com", "trainer", full_name="Trainer Twelve")
+    trainer = _create_user(
+        "trainer.deactivate.missing@example.com",
+        "trainer",
+        full_name="Trainer Twelve",
+    )
     headers = _auth_headers(trainer)
 
     response = client.post("/api/clients/99999/deactivate", headers=headers)
@@ -320,8 +324,16 @@ def test_deactivate_client_not_found_returns_404(client):
 
 
 def test_trainer_cannot_deactivate_other_trainers_client(client):
-    trainer = _create_user("trainer.deactivate.owner@example.com", "trainer", full_name="Trainer Owner")
-    other_trainer = _create_user("trainer.deactivate.other@example.com", "trainer", full_name="Trainer Other")
+    trainer = _create_user(
+        "trainer.deactivate.owner@example.com",
+        "trainer",
+        full_name="Trainer Owner",
+    )
+    other_trainer = _create_user(
+        "trainer.deactivate.other@example.com",
+        "trainer",
+        full_name="Trainer Other",
+    )
     headers = _auth_headers(trainer)
 
     other_client = Client(
@@ -329,7 +341,7 @@ def test_trainer_cannot_deactivate_other_trainers_client(client):
         name="Other Trainer Client",
         age=38,
         fitness_level="Intermediate",
-        goals="Improve speed and agility"
+        goals="Improve speed and agility",
     )
     db.session.add(other_client)
     db.session.commit()
@@ -355,7 +367,7 @@ def test_trainee_can_fetch_own_client_profile(client):
         name="Profile Client",
         age=24,
         fitness_level="Beginner",
-        goals="Build confidence in workouts"
+        goals="Build confidence in workouts",
     )
     db.session.add(client_record)
     db.session.commit()

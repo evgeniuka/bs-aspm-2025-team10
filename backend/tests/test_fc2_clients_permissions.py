@@ -41,7 +41,7 @@ def test_wrong_role_returns_403(client):
         "name": "Blocked Client",
         "age": 25,
         "fitness_level": "Beginner",
-        "goals": "Improve core strength"
+        "goals": "Improve core strength",
     }
 
     response = client.post("/api/clients", json=payload, headers=headers)

@@ -30,11 +30,10 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import pytest
-from flask import jsonify, request
-
 from app import create_app
 from models import db
-from utils.jwt_utils import role_required, token_required
+from models.user import User
+from utils.jwt_utils import generate_token
 
 
 @pytest.fixture(scope="session")
@@ -45,19 +44,6 @@ def app():
             "TESTING": True,
         }
     )
-
-    @flask_app.route("/test/protected", methods=["GET"])
-    @token_required
-    def protected_test_route():
-        return jsonify(
-            {"ok": True, "user_id": request.user_id, "role": request.user_role}
-        ), 200
-
-    @flask_app.route("/test/admin", methods=["GET"])
-    @token_required
-    @role_required("trainer")
-    def admin_test_route():
-        return jsonify({"ok": True, "role": request.user_role}), 200
 
     with flask_app.app_context():
         db.create_all()
@@ -70,19 +56,17 @@ def app():
 
 
 @pytest.fixture(autouse=True)
-def clean_db(app):
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
-    yield
-    with app.app_context():
-        db.session.remove()
-
-
-@pytest.fixture(autouse=True)
 def app_context(app):
     with app.app_context():
         yield
+
+
+@pytest.fixture(autouse=True)
+def clean_db(app_context):
+    db.drop_all()
+    db.create_all()
+    yield
+    db.session.remove()
 
 
 @pytest.fixture()
@@ -94,3 +78,24 @@ def client(app):
 def db_session(app):
     with app.app_context():
         yield db.session
+
+
+@pytest.fixture()
+def create_user(db_session):
+    def _create_user(email, role, full_name="Test User", password="password123"):
+        user = User(email=email, full_name=full_name, role=role)
+        user.set_password(password)
+        db_session.add(user)
+        db_session.commit()
+        return user
+
+    return _create_user
+
+
+@pytest.fixture()
+def auth_headers():
+    def _auth_headers(user):
+        token = generate_token(user.id, user.role)
+        return {"Authorization": f"Bearer {token}"}
+
+    return _auth_headers

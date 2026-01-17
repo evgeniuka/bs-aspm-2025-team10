@@ -35,7 +35,7 @@ def validate_client_update_payload(data):
             return "Name must be 2-50 characters"
     if "age" in data:
         if not (16 <= data["age"] <= 100):
-            return "Age must be between 1 6  and 100"
+            return "Age must be between 16 and 100"
     if "fitness_level" in data:
         if data["fitness_level"] not in ["Beginner", "Intermediate", "Advanced"]:
             return "Invalid fitness level"
