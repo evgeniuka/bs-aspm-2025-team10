@@ -2,12 +2,25 @@ import os
 import sys
 from pathlib import Path
 
-TEST_DATABASE_URL = os.getenv(
-    "DATABASE_URL_TEST",
-    "postgresql+psycopg2://admin:123@localhost:5432/fitnessClub_test",
-)
+from sqlalchemy.engine import make_url
 
-if "fitnessClub" in TEST_DATABASE_URL and "fitnessClub_test" not in TEST_DATABASE_URL:
+TEST_DATABASE_URL = os.getenv("DATABASE_URL_TEST")
+if not TEST_DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL_TEST environment variable must be set to a Postgres test database."
+    )
+
+try:
+    parsed_url = make_url(TEST_DATABASE_URL)
+except Exception as exc:
+    raise RuntimeError(
+        "DATABASE_URL_TEST must be a valid SQLAlchemy Postgres URL."
+    ) from exc
+
+if not parsed_url.drivername.startswith("postgresql"):
+    raise RuntimeError("Tests require Postgres. DATABASE_URL_TEST must start with 'postgresql'.")
+
+if parsed_url.database and "test" not in parsed_url.database:
     raise RuntimeError("Refusing to run tests against non-test database.")
 
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
