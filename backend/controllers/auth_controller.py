@@ -6,6 +6,33 @@ from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
+
+def validate_login_data(data):
+    if not data or not isinstance(data, dict):
+        return "Email and password are required"
+    email = data.get("email")
+    password = data.get("password")
+    if not isinstance(email, str) or not isinstance(password, str):
+        return "Email and password are required"
+    if not email or not password:
+        return "Email and password are required"
+    return None
+
+
+def validate_register_data(data):
+    if not data or not isinstance(data, dict):
+        return "Missing required fields"
+    required_fields = ["email", "password", "full_name", "role"]
+    if not all(field in data for field in required_fields):
+        return "Missing required fields"
+    role = data.get("role")
+    if not isinstance(role, str) or role not in ["trainer", "trainee"]:
+        return "Invalid role. Must be trainer or trainee"
+    password = data.get("password")
+    if not isinstance(password, str) or len(password) < 8:
+        return "Password must be at least 8 characters long"
+    return None
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """
