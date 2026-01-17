@@ -6,7 +6,9 @@ PyJWT==2.8.0
 bcrypt==4.1.2
 python-dotenv==1.0.0
 psycopg2-binary==2.9.9
-// backend/pip install flask-socketio python-socketio
-// frontend/npm install socket.io-client
-// frontend/npm install date-fns
-// frontend/npm install recharts
+
+# Notes:
+# backend: pip install flask-socketio python-socketio
+# frontend: npm install socket.io-client
+# frontend: npm install date-fns
+# frontend: npm install recharts

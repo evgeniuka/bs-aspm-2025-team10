@@ -1,10 +1,13 @@
 # backend/app.py
-
+import os
 from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from models import db
 from config import Config
+from dotenv import load_dotenv
+load_dotenv()
+
 
 socketio = SocketIO()
 
@@ -163,5 +166,10 @@ if __name__ == '__main__':
     @socketio.on('disconnect')
     def handle_disconnect():
         print(f'🔌 Client disconnected: {request.sid}')
-    
-    socketio.run(app, debug=True, port=5000)
+
+
+
+
+    if __name__ == "__main__":
+        allow = os.getenv("ALLOW_UNSAFE_WERKZEUG", "1") == "1"
+        socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=allow)
