@@ -89,11 +89,11 @@ def test_validate_client_update_name_too_long():
 
 
 def test_validate_client_update_age_too_low():
-    assert validate_client_update_payload({"age": 10}) == "Age must be between 1 6  and 100"
+    assert validate_client_update_payload({"age": 10}) == "Age must be between 16 and 100"
 
 
 def test_validate_client_update_age_too_high():
-    assert validate_client_update_payload({"age": 120}) == "Age must be between 1 6  and 100"
+    assert validate_client_update_payload({"age": 120}) == "Age must be between 16 and 100"
 
 
 def test_validate_client_update_invalid_fitness_level():
