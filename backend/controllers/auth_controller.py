@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from models import db
 from models.user import User
 from utils.jwt_utils import generate_token, token_required
+from utils.validation import validate_register_payload
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
@@ -44,17 +45,11 @@ def register():
     POST /api/auth/register
     Body: { "email": "...", "password": "...", "full_name": "...", "role": "trainer|trainee" }
     """
-    data = request.get_json()
-    
-    required_fields = ['email', 'password', 'full_name', 'role']
-    if not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing required fields'}), 400
-    
-    if data['role'] not in ['trainer', 'trainee']:
-        return jsonify({'error': 'Invalid role. Must be trainer or trainee'}), 400
-    
-    if len(data['password']) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+    data = request.get_json() or {}
+
+    error = validate_register_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
     
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'Email already registered'}), 409
@@ -83,7 +78,7 @@ def get_current_user():
     GET /api/auth/me
     Headers: { "Authorization": "Bearer <token>" }
     """
-    user = User.query.get(request.user_id)
+    user = db.session.get(User, request.user_id)
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
