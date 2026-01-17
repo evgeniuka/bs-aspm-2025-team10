@@ -1,49 +1,6 @@
-import os
-import sys
-from pathlib import Path
-
-import pytest
-
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-sys.path.append(str(BACKEND_ROOT))
-
-database_url = os.environ.get("DATABASE_URL")
-if not database_url:
-    pytest.fail("DATABASE_URL is not set")
-
 from models import db
 from models.user import User
 from models.client import Client
-
-
-def _build_app():
-    import config as app_config
-
-    app_config.Config.SQLALCHEMY_DATABASE_URI = database_url
-
-    from app import create_app
-
-    app, _ = create_app()
-    app.config["TESTING"] = True
-    return app
-
-
-@pytest.fixture()
-def app():
-    app = _build_app()
-    ctx = app.app_context()
-    ctx.push()
-    db.drop_all()
-    db.create_all()
-    yield app
-    db.session.remove()
-    db.drop_all()
-    ctx.pop()
-
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
 
 
 def _create_user(email, role, full_name="Test User", password="password123"):
@@ -61,7 +18,7 @@ def _auth_headers(user):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_trainer_can_create_client(client, app):
+def test_trainer_can_create_client(client):
     trainer = _create_user("trainer@example.com", "trainer", full_name="Trainer One")
     headers = _auth_headers(trainer)
 
@@ -88,7 +45,7 @@ def test_trainer_can_create_client(client, app):
     assert db_client.name == payload["name"]
 
 
-def test_trainer_can_list_clients(client, app):
+def test_trainer_can_list_clients(client):
     trainer = _create_user("trainer.list@example.com", "trainer", full_name="Trainer Two")
     headers = _auth_headers(trainer)
 
@@ -134,7 +91,7 @@ def test_trainer_can_list_clients(client, app):
     assert "created_at" in data[0]
 
 
-def test_create_client_missing_required_field_returns_400(client, app):
+def test_create_client_missing_required_field_returns_400(client):
     trainer = _create_user("trainer.missing@example.com", "trainer", full_name="Trainer Three")
     headers = _auth_headers(trainer)
 
@@ -151,7 +108,7 @@ def test_create_client_missing_required_field_returns_400(client, app):
     assert "error" in data
 
 
-def test_create_client_invalid_field_format_returns_400(client, app):
+def test_create_client_invalid_field_format_returns_400(client):
     trainer = _create_user("trainer.invalid@example.com", "trainer", full_name="Trainer Four")
     headers = _auth_headers(trainer)
 
@@ -169,7 +126,7 @@ def test_create_client_invalid_field_format_returns_400(client, app):
     assert data["error"] == "Invalid fitness level"
 
 
-def test_create_client_invalid_age_returns_400(client, app):
+def test_create_client_invalid_age_returns_400(client):
     trainer = _create_user("trainer.invalidage@example.com", "trainer", full_name="Trainer Six")
     headers = _auth_headers(trainer)
 
@@ -187,7 +144,7 @@ def test_create_client_invalid_age_returns_400(client, app):
     assert data["error"] == "Age must be between 16 and 100"
 
 
-def test_create_client_short_goals_returns_400(client, app):
+def test_create_client_short_goals_returns_400(client):
     trainer = _create_user("trainer.goals@example.com", "trainer", full_name="Trainer Seven")
     headers = _auth_headers(trainer)
 
@@ -205,7 +162,7 @@ def test_create_client_short_goals_returns_400(client, app):
     assert data["error"] == "Goals must be at least 10 characters"
 
 
-def test_create_client_links_existing_trainee_user(client, app):
+def test_create_client_links_existing_trainee_user(client):
     trainer = _create_user("trainer.link@example.com", "trainer", full_name="Trainer Eight")
     trainee = _create_user("trainee.link@example.com", "trainee", full_name="Trainee Link")
     headers = _auth_headers(trainer)
@@ -228,7 +185,7 @@ def test_create_client_links_existing_trainee_user(client, app):
     assert db_client.user_id == trainee.id
 
 
-def test_update_nonexistent_client_returns_404(client, app):
+def test_update_nonexistent_client_returns_404(client):
     trainer = _create_user("trainer.notfound@example.com", "trainer", full_name="Trainer Five")
     headers = _auth_headers(trainer)
 
@@ -239,7 +196,7 @@ def test_update_nonexistent_client_returns_404(client, app):
     assert data["error"] == "Client not found"
 
 
-def test_trainer_can_update_client_and_persist_changes(client, app):
+def test_trainer_can_update_client_and_persist_changes(client):
     trainer = _create_user("trainer.update@example.com", "trainer", full_name="Trainer Nine")
     headers = _auth_headers(trainer)
 
@@ -276,7 +233,7 @@ def test_trainer_can_update_client_and_persist_changes(client, app):
     assert db_client.goals == payload["goals"]
 
 
-def test_update_client_invalid_age_returns_400(client, app):
+def test_update_client_invalid_age_returns_400(client):
     trainer = _create_user("trainer.update.invalid@example.com", "trainer", full_name="Trainer Ten")
     headers = _auth_headers(trainer)
 
@@ -301,7 +258,7 @@ def test_update_client_invalid_age_returns_400(client, app):
     assert data["error"] == "Age must be between 16 and 100"
 
 
-def test_trainer_cannot_update_other_trainers_client(client, app):
+def test_trainer_cannot_update_other_trainers_client(client):
     trainer = _create_user("trainer.owner@example.com", "trainer", full_name="Trainer Owner")
     other_trainer = _create_user("trainer.otherowner@example.com", "trainer", full_name="Trainer Other")
     headers = _auth_headers(trainer)
@@ -327,7 +284,7 @@ def test_trainer_cannot_update_other_trainers_client(client, app):
     assert data["error"] == "Client not found"
 
 
-def test_trainer_can_deactivate_client(client, app):
+def test_trainer_can_deactivate_client(client):
     trainer = _create_user("trainer.deactivate@example.com", "trainer", full_name="Trainer Eleven")
     headers = _auth_headers(trainer)
 
@@ -351,7 +308,7 @@ def test_trainer_can_deactivate_client(client, app):
     assert db_client.active is False
 
 
-def test_deactivate_client_not_found_returns_404(client, app):
+def test_deactivate_client_not_found_returns_404(client):
     trainer = _create_user("trainer.deactivate.missing@example.com", "trainer", full_name="Trainer Twelve")
     headers = _auth_headers(trainer)
 
@@ -362,7 +319,7 @@ def test_deactivate_client_not_found_returns_404(client, app):
     assert data["error"] == "Client not found"
 
 
-def test_trainer_cannot_deactivate_other_trainers_client(client, app):
+def test_trainer_cannot_deactivate_other_trainers_client(client):
     trainer = _create_user("trainer.deactivate.owner@example.com", "trainer", full_name="Trainer Owner")
     other_trainer = _create_user("trainer.deactivate.other@example.com", "trainer", full_name="Trainer Other")
     headers = _auth_headers(trainer)
@@ -387,7 +344,7 @@ def test_trainer_cannot_deactivate_other_trainers_client(client, app):
     assert db_client.active is True
 
 
-def test_trainee_can_fetch_own_client_profile(client, app):
+def test_trainee_can_fetch_own_client_profile(client):
     trainer = _create_user("trainer.profile@example.com", "trainer", full_name="Trainer Thirteen")
     trainee = _create_user("trainee.profile@example.com", "trainee", full_name="Trainee Profile")
     headers = _auth_headers(trainee)
@@ -412,7 +369,7 @@ def test_trainee_can_fetch_own_client_profile(client, app):
     assert data["name"] == "Profile Client"
 
 
-def test_trainee_without_client_profile_gets_404(client, app):
+def test_trainee_without_client_profile_gets_404(client):
     trainee = _create_user("trainee.empty@example.com", "trainee", full_name="Trainee Empty")
     headers = _auth_headers(trainee)
 
