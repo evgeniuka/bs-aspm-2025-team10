@@ -1,24 +1,4 @@
-from types import SimpleNamespace
-
-from controllers.client_controller import (
-    resolve_client_user_id,
-    validate_client_payload,
-    validate_client_update_payload,
-)
-from controllers import client_controller
-
-
-class DummyQuery:
-    def __init__(self, user=None):
-        self._user = user
-        self.filters = None
-
-    def filter_by(self, **kwargs):
-        self.filters = kwargs
-        return self
-
-    def first(self):
-        return self._user
+from utils.validation import validate_client_create_payload, validate_client_update_payload
 
 
 def test_validate_client_payload_missing_name():
@@ -27,7 +7,7 @@ def test_validate_client_payload_missing_name():
         "fitness_level": "Beginner",
         "goals": "Improve overall fitness"
     }
-    assert validate_client_payload(data) == "Name must be 2-50 characters"
+    assert validate_client_create_payload(data) == "Name must be 2-50 characters"
 
 
 def test_validate_client_payload_name_too_short():
@@ -37,7 +17,7 @@ def test_validate_client_payload_name_too_short():
         "fitness_level": "Beginner",
         "goals": "Improve overall fitness"
     }
-    assert validate_client_payload(data) == "Name must be 2-50 characters"
+    assert validate_client_create_payload(data) == "Name must be 2-50 characters"
 
 
 def test_validate_client_payload_invalid_age_low():
@@ -47,7 +27,7 @@ def test_validate_client_payload_invalid_age_low():
         "fitness_level": "Beginner",
         "goals": "Improve overall fitness"
     }
-    assert validate_client_payload(data) == "Age must be between 16 and 100"
+    assert validate_client_create_payload(data) == "Age must be between 16 and 100"
 
 
 def test_validate_client_payload_invalid_fitness_level():
@@ -57,7 +37,7 @@ def test_validate_client_payload_invalid_fitness_level():
         "fitness_level": "Expert",
         "goals": "Improve overall fitness"
     }
-    assert validate_client_payload(data) == "Invalid fitness level"
+    assert validate_client_create_payload(data) == "Invalid fitness level"
 
 
 def test_validate_client_payload_short_goals():
@@ -67,7 +47,7 @@ def test_validate_client_payload_short_goals():
         "fitness_level": "Beginner",
         "goals": "Too short"
     }
-    assert validate_client_payload(data) == "Goals must be at least 10 characters"
+    assert validate_client_create_payload(data) == "Goals must be at least 10 characters"
 
 
 def test_validate_client_payload_success():
@@ -77,7 +57,7 @@ def test_validate_client_payload_success():
         "fitness_level": "Intermediate",
         "goals": "Improve overall fitness"
     }
-    assert validate_client_payload(data) is None
+    assert validate_client_create_payload(data) is None
 
 
 def test_validate_client_update_payload_invalid_name():
@@ -103,27 +83,3 @@ def test_validate_client_update_payload_invalid_goals():
 def test_validate_client_update_payload_success():
     data = {"name": "Valid Name", "age": 30}
     assert validate_client_update_payload(data) is None
-
-
-def test_resolve_client_user_id_returns_none_without_email():
-    assert resolve_client_user_id(None) is None
-
-
-def test_resolve_client_user_id_returns_none_for_missing_user(monkeypatch):
-    DummyUser = SimpleNamespace(query=DummyQuery())
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("missing@example.com") is None
-
-
-def test_resolve_client_user_id_returns_none_for_non_trainee(monkeypatch):
-    user = SimpleNamespace(id=10, role="trainer")
-    DummyUser = SimpleNamespace(query=DummyQuery(user))
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("trainer@example.com") is None
-
-
-def test_resolve_client_user_id_returns_id_for_trainee(monkeypatch):
-    user = SimpleNamespace(id=12, role="trainee")
-    DummyUser = SimpleNamespace(query=DummyQuery(user))
-    monkeypatch.setattr(client_controller, "User", DummyUser)
-    assert resolve_client_user_id("trainee@example.com") == 12
