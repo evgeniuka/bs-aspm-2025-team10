@@ -33,103 +33,83 @@ const TraineeDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (user?.role === 'trainer') {
+      if (!user || user.role === 'trainer') {
         setLoading(false);
         return;
       }
 
       try {
-
         const clientResponse = await clientService.getMyClient();
-        console.log('📊 Client data:', clientResponse.data);
-        console.log('🆔 Client ID:', clientResponse.data.id);
         setClient(clientResponse.data);
 
-
         const sessionsResponse = await clientService.getTraineeSessions();
-        if (sessionsResponse.data.sessions && sessionsResponse.data.sessions.length > 0) {
+        if (sessionsResponse.data.sessions?.length > 0) {
           setLastSession(sessionsResponse.data.sessions[0]);
         }
       } catch (err) {
-        console.error(err);
+        console.error('❌ Error loading profile:', err);
         setError('Failed to load your profile');
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchData();
-    }
+    fetchData();
   }, [user]);
 
-
   useEffect(() => {
-    console.log('🔄 TraineeDashboard mounted');
-    
-    if (!user || !user.id) {
-      console.warn('⚠️ No user found, cannot connect to WebSocket');
-      return;
-    }
-    
+    if (!client || !user) return;
+
+    console.log('🔄 Dashboard Sync Check Started');
+
     const checkActiveSession = async () => {
       try {
-        const response = await clientService.get('/trainee/session');
+        const response = await clientService.getTraineeActiveSession();
         
-        if (response.data && response.data.session_id) {
-          console.log('✅ Active session found, redirecting to live session');
+        if (response.data?.session_id && response.data.status !== 'completed') {
+          console.log('🚀 Active session found! Reconnecting...');
           navigate('/trainee/live-session');
           return true;
         }
       } catch (error) {
-        console.log('ℹ️ No active session');
+        console.log('ℹ️ No existing active session.');
       }
       return false;
     };
 
-    const setupWebSocket = async () => {
-      try {
-        const clientResponse = await clientService.getMyClient();
-        const clientId = clientResponse.data.id;
+    const setupLiveSync = () => {
+      console.log('🔌 Setting up background listener for Client:', client.id);
+      const socket = socketService.connect();
+
+      socket.on('connect', () => {
+        socketService.emit('trainee_connect', { trainee_id: client.id });
+      });
+
+      socketService.on('session_started', (data) => {
+        console.log('🔔 Session started by trainer:', data);
+        setNotification('Your trainer started a training session!');
         
-        console.log('🔌 Connecting to WebSocket for client:', clientId);
-        const socket = socketService.connect();
-        
-        socket.on('connect', () => {
-          console.log('✅ WebSocket connected, now emitting trainee_connect');
-          socketService.emit('trainee_connect', { trainee_id: clientId });
-        });
-        
-        socketService.on('session_started', (data) => {
-          console.log('🔔 Session started notification:', data);
-          setNotification('Your trainer started a training session!');
-          setTimeout(() => {
-            navigate('/trainee/live-session');
-          }, 2000);
-        });
-      } catch (error) {
-        console.error('❌ Failed to setup WebSocket:', error);
+        setTimeout(() => {
+          navigate('/trainee/live-session');
+        }, 1500);
+      });
+    };
+
+    const initSync = async () => {
+      const alreadyInSession = await checkActiveSession();
+      if (!alreadyInSession) {
+        setupLiveSync();
       }
     };
 
-    const init = async () => {
-      const hasActiveSession = await checkActiveSession();
-      if (!hasActiveSession) {
-        await setupWebSocket();
-      }
-    };
-
-    init();
-
+    initSync();
 
     return () => {
-      console.log('🧹 TraineeDashboard unmounting');
-      socketService.off('session_started')
-
+      console.log('🧹 Cleaning up Dashboard listeners');
+      socketService.off('session_started');
+      socketService.off('connect');
     };
-  }, [navigate, user]);
-
-
+  }, [client, navigate, user]);
 
 
 
