@@ -56,13 +56,17 @@ def app():
 
 
 @pytest.fixture(autouse=True)
-def clean_db(app):
+def app_context(app):
     with app.app_context():
-        db.drop_all()
-        db.create_all()
+        yield
+
+
+@pytest.fixture(autouse=True)
+def clean_db(app_context):
+    db.drop_all()
+    db.create_all()
     yield
-    with app.app_context():
-        db.session.remove()
+    db.session.remove()
 
 
 @pytest.fixture()
