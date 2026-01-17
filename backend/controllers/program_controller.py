@@ -25,6 +25,11 @@ def validate_program_data(data):
         errors.append('Maximum 20 exercises allowed')
     
     for ex in exercises:
+        if 'exercise_id' not in ex:
+            errors.append('Exercise ID is required')
+            continue
+        if not isinstance(ex.get('exercise_id'), int):
+            errors.append('Exercise ID must be an integer')
         if not (1 <= ex.get('sets', 0) <= 10):
             errors.append(f'Sets must be between 1-10 for exercise')
         if not (1 <= ex.get('reps', 0) <= 50):
@@ -61,7 +66,7 @@ def create_program():
     db.session.flush() 
     
     for idx, ex_data in enumerate(data['exercises']):
-        exercise = db.session.get(Exercise, ex_data['exercise_id'])
+        exercise = Exercise.query.get(ex_data['exercise_id'])
         if not exercise:
             db.session.rollback()
             return jsonify({'error': f'Exercise ID {ex_data["exercise_id"]} not found'}), 400
@@ -97,10 +102,25 @@ def get_programs():
     programs = Program.query.filter_by(client_id=client_id).all()
     result = []
     for p in programs:
-        program_exercises = ProgramExercise.query.filter_by(program_id=p.id).order_by(ProgramExercise.order).all()
+        exercises = ProgramExercise.query.filter_by(program_id=p.id).all()
         result.append({
             'id': p.id,
+            'client_id': p.client_id,
+            'trainer_id': p.trainer_id,
             'name': p.name,
+            'notes': p.notes,
+            'exercises': [
+                {
+                    'id': ex.id,
+                    'exercise_id': ex.exercise_id,
+                    'order': ex.order,
+                    'sets': ex.sets,
+                    'reps': ex.reps,
+                    'weight_kg': ex.weight_kg,
+                    'rest_seconds': ex.rest_seconds,
+                }
+                for ex in exercises
+            ],
             'notes': p.notes,
             'created_at': p.created_at.isoformat(),
             'exercises': [{
