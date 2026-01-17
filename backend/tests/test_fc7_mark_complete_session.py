@@ -10,8 +10,8 @@ from models.workout_log import WorkoutLog
 
 def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_seconds=30):
     with app.app_context():
-        clients = []
-        programs = []
+        client_ids = []
+        program_ids = []
         for idx in range(2):
             client_record = Client(
                 trainer_id=trainer_token["user_id"],
@@ -23,6 +23,7 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
             )
             db.session.add(client_record)
             db.session.flush()
+            client_ids.append(client_record.id)
 
             program = Program(
                 trainer_id=trainer_token["user_id"],
@@ -32,9 +33,7 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
             )
             db.session.add(program)
             db.session.flush()
-
-            clients.append(client_record)
-            programs.append(program)
+            program_ids.append(program.id)
 
         exercises = []
         for idx, sets in enumerate(exercise_sets, start=1):
@@ -49,7 +48,7 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
             db.session.flush()
 
             program_exercise = ProgramExercise(
-                program_id=programs[0].id,
+                program_id=program_ids[0],
                 exercise_id=exercise.id,
                 order=idx,
                 sets=sets,
@@ -62,11 +61,11 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
             exercises.append(exercise)
 
         db.session.commit()
+        exercise_ids = [exercise.id for exercise in exercises]
+        primary_client_id = client_ids[0]
+        primary_program_id = program_ids[0]
 
-    payload = {
-        "client_ids": [client_record.id for client_record in clients],
-        "program_ids": [program.id for program in programs],
-    }
+    payload = {"client_ids": client_ids, "program_ids": program_ids}
     response = client.post(
         "/api/sessions",
         json=payload,
@@ -76,9 +75,9 @@ def _seed_session_with_program(app, client, trainer_token, exercise_sets, rest_s
 
     return {
         "session_id": session_id,
-        "client_id": clients[0].id,
-        "program_id": programs[0].id,
-        "exercise_ids": [exercise.id for exercise in exercises],
+        "client_id": primary_client_id,
+        "program_id": primary_program_id,
+        "exercise_ids": exercise_ids,
         "rest_seconds": rest_seconds,
     }
 
