@@ -67,7 +67,7 @@ def test_validate_client_update_payload_invalid_name():
 
 def test_validate_client_update_payload_invalid_age():
     data = {"age": 101}
-    assert validate_client_update_payload(data) == "Age must be between 1 6  and 100"
+    assert validate_client_update_payload(data) == "Age must be between 16 and 100"
 
 
 def test_validate_client_update_payload_invalid_fitness_level():
