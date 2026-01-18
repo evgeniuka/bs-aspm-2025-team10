@@ -18,9 +18,15 @@ const Login = () => {
   const { setUser } = useAuth();
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true); 
-  setError('');
+    e.preventDefault();
+    setError('');
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true); 
 
     try {
       const response = await axios.post('/api/auth/login', {
