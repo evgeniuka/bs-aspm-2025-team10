@@ -45,6 +45,28 @@ def test_trainer_can_create_client(client):
     assert db_client.name == payload["name"]
 
 
+def test_create_client(client):
+    trainer = _create_user("trainer.create@example.com", "trainer", full_name="Trainer Create")
+    headers = _auth_headers(trainer)
+
+    payload = {
+        "name": "Jamie Client",
+        "age": 32,
+        "fitness_level": "Beginner",
+        "goals": "Improve strength and flexibility"
+    }
+
+    response = client.post("/api/clients", json=payload, headers=headers)
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["name"] == payload["name"]
+
+    db_client = Client.query.filter_by(id=data["id"]).first()
+    assert db_client is not None
+    assert db_client.trainer_id == trainer.id
+
+
 def test_trainer_can_list_clients(client):
     trainer = _create_user("trainer.list@example.com", "trainer", full_name="Trainer Two")
     headers = _auth_headers(trainer)
@@ -89,6 +111,73 @@ def test_trainer_can_list_clients(client):
     assert data[0]["active"] is True
     assert "id" in data[0]
     assert "created_at" in data[0]
+
+
+def test_trainer_can_only_view_own_clients(client):
+    trainer_a = _create_user("trainer.a@example.com", "trainer", full_name="Trainer A")
+    trainer_b = _create_user("trainer.b@example.com", "trainer", full_name="Trainer B")
+    headers = _auth_headers(trainer_a)
+
+    client_a1 = Client(
+        trainer_id=trainer_a.id,
+        name="Trainer A Client 1",
+        age=30,
+        fitness_level="Beginner",
+        goals="Increase core strength and balance"
+    )
+    client_a2 = Client(
+        trainer_id=trainer_a.id,
+        name="Trainer A Client 2",
+        age=27,
+        fitness_level="Intermediate",
+        goals="Build endurance for cycling events"
+    )
+    client_b = Client(
+        trainer_id=trainer_b.id,
+        name="Trainer B Client",
+        age=35,
+        fitness_level="Advanced",
+        goals="Maintain peak performance levels"
+    )
+    db.session.add_all([client_a1, client_a2, client_b])
+    db.session.commit()
+
+    response = client.get("/api/clients", headers=headers)
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 2
+    assert {item["name"] for item in data} == {"Trainer A Client 1", "Trainer A Client 2"}
+
+
+def test_duplicate_email_rejected(client):
+    trainer = _create_user("trainer.dup@example.com", "trainer", full_name="Trainer Dup")
+    trainee = _create_user("trainee.dup@example.com", "trainee", full_name="Trainee Dup")
+    headers = _auth_headers(trainer)
+
+    payload = {
+        "name": "First Client",
+        "age": 29,
+        "fitness_level": "Beginner",
+        "goals": "Increase stamina and overall health",
+        "user_email": trainee.email
+    }
+    response = client.post("/api/clients", json=payload, headers=headers)
+
+    assert response.status_code == 201
+
+    duplicate_payload = {
+        "name": "Duplicate Client",
+        "age": 31,
+        "fitness_level": "Intermediate",
+        "goals": "Improve posture and flexibility",
+        "user_email": trainee.email
+    }
+    duplicate_response = client.post("/api/clients", json=duplicate_payload, headers=headers)
+
+    assert duplicate_response.status_code == 400
+    data = duplicate_response.get_json()
+    assert data["error"] == "Client already exists for this email"
 
 
 def test_create_client_missing_required_field_returns_400(client):
@@ -342,6 +431,27 @@ def test_trainer_cannot_deactivate_other_trainers_client(client):
 
     db_client = Client.query.get(other_client.id)
     assert db_client.active is True
+
+
+def test_delete_client(client):
+    trainer = _create_user("trainer.delete@example.com", "trainer", full_name="Trainer Delete")
+    headers = _auth_headers(trainer)
+
+    client_record = Client(
+        trainer_id=trainer.id,
+        name="Delete Client",
+        age=36,
+        fitness_level="Intermediate",
+        goals="Stay consistent with weekly workouts"
+    )
+    db.session.add(client_record)
+    db.session.commit()
+
+    response = client.delete(f"/api/clients/{client_record.id}", headers=headers)
+
+    assert response.status_code == 200
+    db_client = Client.query.get(client_record.id)
+    assert db_client is None
 
 
 def test_trainee_can_fetch_own_client_profile(client):

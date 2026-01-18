@@ -66,7 +66,12 @@ def create_client():
         # if active_count >= 4:
         #     return jsonify({'error': 'Cannot have more than 4 active clients'}), 409
         
-        user_id = resolve_client_user_id(data.get('user_email'))
+        user_email = data.get('user_email')
+        user_id = resolve_client_user_id(user_email)
+        if user_email and user_id:
+            existing_client = Client.query.filter_by(user_id=user_id).first()
+            if existing_client:
+                return jsonify({'error': 'Client already exists for this email'}), 400
 
         client = Client(
             trainer_id=trainer_id,
@@ -84,6 +89,19 @@ def create_client():
     except Exception as e:
         print(f"Error creating client: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@client_bp.route('/<int:client_id>', methods=['DELETE'])
+@token_required
+@role_required('trainer')
+def delete_client(client_id):
+    """DELETE /api/clients/<id> - Delete client"""
+    trainer_id = request.user_id
+    client = Client.query.filter_by(id=client_id, trainer_id=trainer_id).first()
+    if not client:
+        return jsonify({'error': 'Client not found'}), 404
+    db.session.delete(client)
+    db.session.commit()
+    return jsonify({'message': 'Client deleted'}), 200
 
 @client_bp.route('/<int:client_id>', methods=['PUT'])
 @token_required
