@@ -78,7 +78,7 @@ const StartSessionModal = ({ open, onClose }) => {
 
   const isFormValid = () => {
     return (
-      selectedClients.length >= 2 &&
+      selectedClients.length >= 1 &&
       selectedClients.length <= 4 &&
       selectedClients.every(clientId => clientPrograms[clientId])
     );
@@ -111,12 +111,12 @@ const StartSessionModal = ({ open, onClose }) => {
       <DialogTitle>Start Group Training Session</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" color={selectedCount >= 2 ? 'success.main' : 'error.main'}>
+          <Typography variant="subtitle1" color={selectedCount >= 1 ? 'success.main' : 'error.main'}>
             Selected: {selectedCount}/4
           </Typography>
-          {selectedCount < 2 && (
+          {selectedCount < 1 && (
             <Alert severity="error" sx={{ mt: 1 }}>
-              Select at least 2 clients to start
+              Select at least 1 client to start
             </Alert>
           )}
         </Box>

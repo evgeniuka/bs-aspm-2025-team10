@@ -112,6 +112,19 @@ def test_fc5_start_training_session_requires_auth(client, app):
 
 def test_fc5_start_training_session_rejects_invalid_counts(client, app):
     trainer_id, token = _create_trainer(app)
+    response = client.post(
+        "/api/sessions",
+        json={"client_ids": [], "program_ids": []},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert "At least 1 client is required" in payload["details"]
+
+
+def test_fc5_start_training_session_accepts_single_client(client, app):
+    trainer_id, token = _create_trainer(app)
     client_id = _create_single_client(app, trainer_id)
     program_id = _create_program_for_client(app, trainer_id, client_id)
 
@@ -121,9 +134,77 @@ def test_fc5_start_training_session_rejects_invalid_counts(client, app):
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 201
     payload = response.get_json()
-    assert "At least 2 clients are required" in payload["details"]
+    session_id = payload["session_id"]
+    with app.app_context():
+        session_clients = SessionClient.query.filter_by(session_id=session_id).all()
+        assert len(session_clients) == 1
+        assert session_clients[0].client_id == client_id
+        assert session_clients[0].program_id == program_id
+
+
+def test_fc5_start_training_session_accepts_four_clients(client, app):
+    trainer_id, token = _create_trainer(app)
+    with app.app_context():
+        clients = []
+        programs = []
+        for idx in range(4):
+            client_record = Client(
+                trainer_id=trainer_id,
+                name=f"Client {idx + 1}",
+                age=20 + idx,
+                fitness_level="Beginner",
+                goals="Strength",
+                active=True,
+            )
+            db.session.add(client_record)
+            db.session.flush()
+            program = Program(
+                trainer_id=trainer_id,
+                client_id=client_record.id,
+                name=f"Program {idx + 1}",
+                notes="Group program",
+            )
+            db.session.add(program)
+            clients.append(client_record.id)
+            programs.append(program.id)
+        db.session.commit()
+
+    response = client.post(
+        "/api/sessions",
+        json={"client_ids": clients, "program_ids": programs},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    session_id = response.get_json()["session_id"]
+    with app.app_context():
+        session_clients = SessionClient.query.filter_by(session_id=session_id).all()
+        assert len(session_clients) == 4
+
+
+def test_fc5_start_training_session_rejects_other_trainer_clients(client, app):
+    trainer_a_id, trainer_a_token = _create_trainer(app)
+    with app.app_context():
+        trainer_b = User(email="trainer_b@example.com", full_name="Trainer B", role="trainer")
+        trainer_b.set_password("password123")
+        db.session.add(trainer_b)
+        db.session.commit()
+        trainer_b_id = trainer_b.id
+
+    client_id = _create_single_client(app, trainer_b_id, name_suffix="Other")
+    program_id = _create_program_for_client(app, trainer_b_id, client_id, name_suffix="Other")
+
+    response = client.post(
+        "/api/sessions",
+        json={"client_ids": [client_id], "program_ids": [program_id]},
+        headers={"Authorization": f"Bearer {trainer_a_token}"},
+    )
+
+    assert response.status_code == 403
+    payload = response.get_json()
+    assert "not assigned to trainer" in " ".join(payload["details"])
 
 
 def test_fc5_start_training_session_rejects_too_many_clients(client, app):

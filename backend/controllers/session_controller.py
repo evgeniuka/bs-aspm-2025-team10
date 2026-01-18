@@ -17,8 +17,8 @@ def validate_session_data(data, trainer_id=None):
     client_ids = data.get('client_ids') or []
     program_ids = data.get('program_ids') or []
 
-    if len(client_ids) < 2:
-        errors.append('At least 2 clients are required')
+    if len(client_ids) < 1:
+        errors.append('At least 1 client is required')
     if len(client_ids) > 4:
         errors.append('Maximum 4 clients allowed')
 
@@ -57,7 +57,8 @@ def create_session():
     
     errors = validate_session_data(data, trainer_id=trainer_id)
     if errors:
-        return jsonify({'error': 'Validation failed', 'details': errors}), 400
+        status_code = 403 if any('not assigned to trainer' in error for error in errors) else 400
+        return jsonify({'error': 'Validation failed', 'details': errors}), status_code
     
     session = Session(
         trainer_id=trainer_id,
