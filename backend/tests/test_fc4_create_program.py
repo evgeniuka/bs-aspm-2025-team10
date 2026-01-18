@@ -416,17 +416,36 @@ def test_get_programs_for_client_returns_assigned_program(client, db_session):
     assert exercise_list[0]["rest_seconds"] == payload["exercises"][0]["rest_seconds"]
 
 
-def test_get_programs_missing_client_id_returns_400(client, db_session):
+def test_get_programs_without_client_id_returns_trainer_programs(client, db_session):
     trainer = _create_user(db_session)
+    client_record = _create_client_record(db_session, trainer.id)
+    exercises = _create_exercises(db_session, count=5)
     headers = _auth_headers(trainer)
+
+    payload = {
+        "name": "Trainer Programs",
+        "client_id": client_record.id,
+        "notes": "Top picks",
+        "exercises": _build_exercises_payload([exercise.id for exercise in exercises]),
+    }
+
+    create_response = client.post(
+        "/api/programs",
+        json=payload,
+        headers=headers,
+    )
+
+    assert create_response.status_code == 201
 
     response = client.get(
         "/api/programs",
         headers=headers,
     )
 
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "client_id query param is required"}
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert data[0]["name"] == payload["name"]
 
 
 def test_get_programs_client_not_owned_returns_404(client, db_session):
