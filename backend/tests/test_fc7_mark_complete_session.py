@@ -182,7 +182,7 @@ def test_fc7_mark_complete_advances_to_next_exercise(client, app, trainer_token)
     updated_client = response.get_json()["updated_client"]
     assert updated_client["current_exercise_index"] == 1
     assert updated_client["current_set"] == 1
-    assert updated_client["status"] == "ready"
+    assert updated_client["status"] == "active"
 
     with app.app_context():
         session_client = SessionClient.query.filter_by(
@@ -226,3 +226,150 @@ def test_fc7_mark_complete_marks_program_completed(client, app, trainer_token):
         ).first()
         assert session_client.status == "completed"
         assert len(session_client.completed_exercises or []) == 2
+
+
+def test_mark_set_complete(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[4], rest_seconds=20)
+
+    response = client.post(
+        f"/api/sessions/{seeded['session_id']}/complete-set",
+        json={
+            "client_id": seeded["client_id"],
+            "exercise_id": seeded["exercise_ids"][0],
+            "set_number": 1,
+        },
+        headers={"Authorization": f"Bearer {trainer_token['token']}"},
+    )
+
+    assert response.status_code == 200
+    updated_client = response.get_json()["updated_client"]
+    assert len(updated_client["sets_completed"]) == 1
+
+    with app.app_context():
+        logs = WorkoutLog.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+            exercise_id=seeded["exercise_ids"][0],
+        ).all()
+        assert len(logs) == 1
+
+
+def test_state_transition_to_resting(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[4], rest_seconds=60)
+
+    client.post(
+        f"/api/sessions/{seeded['session_id']}/complete-set",
+        json={
+            "client_id": seeded["client_id"],
+            "exercise_id": seeded["exercise_ids"][0],
+            "set_number": 1,
+        },
+        headers={"Authorization": f"Bearer {trainer_token['token']}"},
+    )
+
+    with app.app_context():
+        session_client = SessionClient.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+        ).first()
+        assert session_client.status == "resting"
+        assert session_client.rest_time_remaining == seeded["rest_seconds"]
+
+
+def test_state_transition_to_next_exercise(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[2, 1], rest_seconds=0)
+
+    for set_number in (1, 2):
+        client.post(
+            f"/api/sessions/{seeded['session_id']}/complete-set",
+            json={
+                "client_id": seeded["client_id"],
+                "exercise_id": seeded["exercise_ids"][0],
+                "set_number": set_number,
+            },
+            headers={"Authorization": f"Bearer {trainer_token['token']}"},
+        )
+
+    with app.app_context():
+        session_client = SessionClient.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+        ).first()
+        assert session_client.current_exercise_index == 1
+        assert session_client.status == "active"
+
+
+def test_state_transition_to_completed(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[1, 1], rest_seconds=0)
+
+    for exercise_id in seeded["exercise_ids"]:
+        client.post(
+            f"/api/sessions/{seeded['session_id']}/complete-set",
+            json={
+                "client_id": seeded["client_id"],
+                "exercise_id": exercise_id,
+                "set_number": 1,
+            },
+            headers={"Authorization": f"Bearer {trainer_token['token']}"},
+        )
+
+    with app.app_context():
+        session_client = SessionClient.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+        ).first()
+        assert session_client.status == "completed"
+        assert set(session_client.completed_exercises or []) == set(seeded["exercise_ids"])
+
+
+def test_websocket_event_emitted(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[1], rest_seconds=0)
+    socketio = app.extensions["socketio"]
+
+    trainer_ws = SocketIOTestClient(app, socketio, flask_test_client=client)
+    _join_session_room(trainer_ws, seeded["session_id"])
+    trainer_ws.get_received()
+
+    response = client.post(
+        f"/api/sessions/{seeded['session_id']}/complete-set",
+        json={
+            "client_id": seeded["client_id"],
+            "exercise_id": seeded["exercise_ids"][0],
+            "set_number": 1,
+        },
+        headers={"Authorization": f"Bearer {trainer_token['token']}"},
+    )
+
+    assert response.status_code == 200
+    trainer_events = _find_event(trainer_ws.get_received(), "session_update")
+    assert trainer_events
+
+
+def test_concurrent_set_completion(client, app, trainer_token):
+    seeded = _seed_session_with_program(app, client, trainer_token, exercise_sets=[2], rest_seconds=0)
+
+    for _ in range(2):
+        client.post(
+            f"/api/sessions/{seeded['session_id']}/complete-set",
+            json={
+                "client_id": seeded["client_id"],
+                "exercise_id": seeded["exercise_ids"][0],
+                "set_number": 1,
+            },
+            headers={"Authorization": f"Bearer {trainer_token['token']}"},
+        )
+
+    with app.app_context():
+        logs = WorkoutLog.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+            exercise_id=seeded["exercise_ids"][0],
+            set_number=1,
+        ).all()
+        session_client = SessionClient.query.filter_by(
+            session_id=seeded["session_id"],
+            client_id=seeded["client_id"],
+        ).first()
+
+        assert len(logs) == 1
+        assert session_client.current_set == 2

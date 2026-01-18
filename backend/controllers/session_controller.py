@@ -5,6 +5,7 @@ from models.program import Program, ProgramExercise
 from models.session import Session, SessionClient
 from utils.jwt_utils import token_required
 from models.workout_log import WorkoutLog
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 from datetime import datetime
 
@@ -181,43 +182,58 @@ def complete_set(session_id):
     if not program_exercise:
         return jsonify({'error': 'Exercise not found in program'}), 404
     
-    workout_log = WorkoutLog(
+    existing_log = WorkoutLog.query.filter_by(
         session_id=session_id,
         client_id=data['client_id'],
         exercise_id=data['exercise_id'],
         set_number=data['set_number'],
-        reps_completed=program_exercise.reps,
-        weight_kg=program_exercise.weight_kg
-    )
-    db.session.add(workout_log)
-    
-    current_set = session_client.current_set
-    total_sets = program_exercise.sets
-    
-    if current_set < total_sets:
-        session_client.current_set += 1
-        session_client.status = 'resting'
-        session_client.rest_time_remaining = program_exercise.rest_seconds
-    else:
-        if session_client.completed_exercises is None:
-            session_client.completed_exercises = []
-        
-        session_client.completed_exercises.append(data['exercise_id'])
-        flag_modified(session_client, 'completed_exercises')  
-        
-        session_client.current_exercise_index += 1
-        session_client.current_set = 1
-        session_client.rest_time_remaining = 0
-        
-        total_exercises = ProgramExercise.query.filter_by(program_id=session_client.program_id).count()
-        
-        if session_client.current_exercise_index >= total_exercises:
-            session_client.status = 'completed'
+    ).first()
+
+    if existing_log is None:
+        workout_log = WorkoutLog(
+            session_id=session_id,
+            client_id=data['client_id'],
+            exercise_id=data['exercise_id'],
+            set_number=data['set_number'],
+            reps_completed=program_exercise.reps,
+            weight_kg=program_exercise.weight_kg
+        )
+        db.session.add(workout_log)
+
+        current_set = session_client.current_set
+        total_sets = program_exercise.sets
+
+        if current_set < total_sets:
+            session_client.current_set += 1
+            session_client.status = 'resting'
+            session_client.rest_time_remaining = program_exercise.rest_seconds
         else:
-            session_client.status = 'ready'
+            if session_client.completed_exercises is None:
+                session_client.completed_exercises = []
+            
+            session_client.completed_exercises.append(data['exercise_id'])
+            flag_modified(session_client, 'completed_exercises')  
+            
+            session_client.current_exercise_index += 1
+            session_client.current_set = 1
+            session_client.rest_time_remaining = 0
+            
+            total_exercises = ProgramExercise.query.filter_by(program_id=session_client.program_id).count()
+            
+            if session_client.current_exercise_index >= total_exercises:
+                session_client.status = 'completed'
+            else:
+                session_client.status = 'active'
     
-    db.session.commit()
-    
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        session_client = SessionClient.query.filter_by(
+            session_id=session_id,
+            client_id=data['client_id']
+        ).first_or_404()
+
     updated_client_data = {
         'current_exercise_index': session_client.current_exercise_index,
         'current_set': session_client.current_set,
@@ -225,6 +241,19 @@ def complete_set(session_id):
         'rest_time_remaining': session_client.rest_time_remaining,
         'completed_exercises': session_client.completed_exercises
     }
+
+    sets_completed = WorkoutLog.query.filter_by(
+        session_id=session_id,
+        client_id=data['client_id'],
+        exercise_id=data['exercise_id'],
+    ).order_by(WorkoutLog.set_number).all()
+    updated_client_data['sets_completed'] = [
+        {
+            'set_number': log.set_number,
+            'reps_completed': log.reps_completed,
+            'weight_kg': log.weight_kg
+        } for log in sets_completed
+    ]
     
     try:
         socketio = current_app.extensions['socketio']
