@@ -60,7 +60,7 @@ def test_validate_session_data_requires_clients_and_programs(monkeypatch):
     _patch_queries(monkeypatch, client_ids=set(), program_ids=set())
     payload = {"client_ids": [], "program_ids": []}
     errors = session_controller.validate_session_data(payload)
-    assert "At least 2 clients are required" in errors
+    assert "At least 1 client is required" in errors
     assert "Each selected client must have a program assigned" in errors
 
 
