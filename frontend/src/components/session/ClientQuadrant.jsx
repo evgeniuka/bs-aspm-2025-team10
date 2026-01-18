@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Box, Typography, LinearProgress, Paper } from '@mui/material';
+import RestTimer from './RestTimer';
 
 const statusTexts = {
   ready: 'READY',
@@ -13,34 +14,16 @@ const ClientQuadrant = ({ client, borderColor, onSelect, onRestTimeUpdate }) => 
   const currentExercise = client.program.exercises[currentExerciseIndex];
   const totalExercises = client.program.exercises.length;
 
-  const [restTime, setRestTime] = useState(currentExercise?.rest_seconds || 60);
-
-  useEffect(() => {
+  const initialRestSeconds = useMemo(() => {
     const exercise = client.program.exercises[client.current_exercise_index];
-    setRestTime(exercise?.rest_seconds || 60);
+    return exercise?.rest_seconds || 60;
   }, [client.current_exercise_index, client.program.exercises]);
 
   useEffect(() => {
     if (onRestTimeUpdate) {
-      onRestTimeUpdate(client.id, restTime);
+      onRestTimeUpdate(client.id, initialRestSeconds);
     }
-  }, [client.id, onRestTimeUpdate, restTime]);
-
-  useEffect(() => {
-    let interval;
-    if (client.status === 'resting' && restTime > 0) {
-      interval = setInterval(() => {
-        setRestTime(prev => {
-          if (prev <= 1) {
-            // ✅ Когда таймер закончится, можно отправить событие "ready"
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [client.status, restTime]);
+  }, [client.id, initialRestSeconds, onRestTimeUpdate]);
 
   const overallProgress = totalExercises > 0 
     ? ((currentExerciseIndex + 1) / totalExercises) * 100 
@@ -49,6 +32,7 @@ const ClientQuadrant = ({ client, borderColor, onSelect, onRestTimeUpdate }) => 
   return (
     <Paper
       elevation={3}
+      data-testid="client-quadrant"
       sx={{
         p: 2,
         display: 'flex',
@@ -116,10 +100,12 @@ const ClientQuadrant = ({ client, borderColor, onSelect, onRestTimeUpdate }) => 
       )}
 
       <Box sx={{ mt: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-        {client.status === 'resting' && restTime > 0 ? (
-          <Typography variant="h5" fontWeight="bold" color="warning.main" align="center">
-            ⏱ REST: {Math.floor(restTime / 60)}:{String(restTime % 60).padStart(2, '0')}
-          </Typography>
+        {client.status === 'resting' ? (
+          <RestTimer
+            initialSeconds={initialRestSeconds}
+            running={client.status === 'resting'}
+            onTick={(remaining) => onRestTimeUpdate?.(client.id, remaining)}
+          />
         ) : (
           <Typography variant="h6" fontWeight="bold" align="center" sx={{
             color: 
