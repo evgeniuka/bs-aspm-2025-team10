@@ -152,6 +152,48 @@ def test_get_exercises_filters_by_equipment(app, client):
     assert _names(items) == {"Bench Press"}
 
 
+def test_get_all_exercises_returns_seeded_set(app, client):
+    with app.app_context():
+        for idx in range(121):
+            create_exercise(
+                f"Exercise {idx}",
+                category="lower_body",
+                equipment="bodyweight",
+                difficulty="beginner",
+            )
+
+    response = client.get("/api/exercises")
+
+    assert response.status_code == 200
+    data = _json_list(response)
+    assert len(data) >= 120
+
+
+def test_filter_by_category_alias_legs(app, client):
+    with app.app_context():
+        create_exercise("Squat", category="lower_body", equipment="barbell", difficulty="beginner")
+        create_exercise("Bench Press", category="upper_body", equipment="barbell", difficulty="intermediate")
+
+    resp = client.get("/api/exercises?category=Legs")
+    assert resp.status_code == 200
+    items = _json_list(resp)
+
+    assert _names(items) == {"Squat"}
+
+
+def test_search_exercises_returns_matching_names(app, client):
+    with app.app_context():
+        create_exercise("Bench Press", category="upper_body", equipment="barbell", difficulty="intermediate")
+        create_exercise("Incline Bench Press", category="upper_body", equipment="barbell", difficulty="intermediate")
+        create_exercise("Deadlift", category="lower_body", equipment="barbell", difficulty="advanced")
+
+    resp = client.get("/api/exercises?search=bench press")
+    assert resp.status_code == 200
+    items = _json_list(resp)
+
+    assert _names(items) == {"Bench Press", "Incline Bench Press"}
+
+
 @pytest.mark.parametrize(
     ("query", "error"),
     [

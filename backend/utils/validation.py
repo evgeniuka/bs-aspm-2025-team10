@@ -50,4 +50,11 @@ def parse_exercise_filters(args):
     category = args.get("category")
     equipment = args.get("equipment")
     difficulty = args.get("difficulty")
+    if category:
+        normalized = category.strip().lower().replace("-", "_").replace(" ", "_")
+        category_aliases = {
+            "legs": "lower_body",
+            "leg": "lower_body",
+        }
+        category = category_aliases.get(normalized, normalized)
     return search, category, equipment, difficulty
