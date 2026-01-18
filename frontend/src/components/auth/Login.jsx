@@ -158,7 +158,17 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
 
-       
+            <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+              New client?{' '}
+              <Link
+                component="button"
+                variant="body2"
+                onClick={() => navigate('/register/trainee')}
+                sx={{ textDecoration: 'underline' }}
+              >
+                Register here
+              </Link>
+            </Typography>
         </Box>
       </Grid>
     </Grid>

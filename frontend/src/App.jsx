@@ -15,7 +15,7 @@ import TrainerClientAnalytics from './pages/TrainerClientAnalytics';
 import TraineeAnalytics from './pages/TraineeAnalytics';
 import TraineeSessionDetails from './pages/TraineeSessionDetails';
 import TraineeLiveSession from './pages/trainee/TraineeLiveSession';
-
+import RegisterTrainee from './components/auth/RegisterTrainee';
 
 function App() {
   return (
@@ -23,7 +23,7 @@ function App() {
       <Navbar /> 
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+        <Route path="/register/trainee" element={<RegisterTrainee />} />
         <Route
           path="/trainer/dashboard"
           element={
@@ -60,6 +60,7 @@ function App() {
         <Route path="/trainee/analytics" element={<TraineeAnalytics />} />
         <Route path="/trainee/session/:sessionId/details" element={<TraineeSessionDetails />} />
         <Route path="/trainee/live-session" element={<TraineeLiveSession />} />
+        
 
       </Routes>
     </>
