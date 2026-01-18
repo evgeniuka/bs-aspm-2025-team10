@@ -3,6 +3,15 @@ from datetime import datetime
 
 class WorkoutLog(db.Model):
     __tablename__ = 'workout_logs'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'session_id',
+            'client_id',
+            'exercise_id',
+            'set_number',
+            name='uq_workout_log_set',
+        ),
+    )
     
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.Integer, db.ForeignKey('sessions.id'), nullable=False)
