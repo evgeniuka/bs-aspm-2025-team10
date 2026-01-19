@@ -353,7 +353,12 @@ def test_websocket_event_emitted(client, app, trainer_token):
     )
 
     assert response.status_code == 200
+
+    import time
+    time.sleep(0.1)  # 💤 ждём немного, чтобы событие дошло до WebSocket
+
     trainer_events = _find_event(trainer_ws.get_received(), "session_update")
+    assert trainer_events
     assert trainer_events
 
 
