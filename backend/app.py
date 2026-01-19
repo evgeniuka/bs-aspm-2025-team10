@@ -26,7 +26,7 @@ def register_socket_handlers():
             return
         
         room = f'trainee_{trainee_id}'
-        join_room(room)
+        join_room(room, sid=request.sid, namespace='/')
         print(f"✅ Trainee {trainee_id} joined personal room: {room}")
 
     @socketio.on('join_session')
@@ -35,7 +35,7 @@ def register_socket_handlers():
         if not session_id:
             return
         room = f"session_{session_id}"
-        join_room(room)
+        join_room(room, sid=request.sid, namespace='/')
         print(f'📍 Trainer joined room: {room}')
 
     @socketio.on('trainee_join_session')
@@ -58,7 +58,7 @@ def register_socket_handlers():
             return
         
         room = f'session_{session_id}'
-        join_room(room)
+        join_room(room, sid=request.sid, namespace='/')
         print(f"✅ Trainee {trainee_id} joined session room: {room}")
         
         from models.program import ProgramExercise
@@ -112,7 +112,7 @@ def register_socket_handlers():
         if not session_id:
             return
         room = f"session_{session_id}"
-        leave_room(room)
+        leave_room(room, sid=request.sid, namespace='/')
         print(f'📤 Client left room: {room}')
 
     @socketio.on('disconnect')
