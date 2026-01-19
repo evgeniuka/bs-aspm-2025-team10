@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, FormControl, InputLabel, Select, MenuItem,
@@ -8,11 +8,33 @@ import {
 const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
   const isEdit = !!initialData;
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    age: initialData?.age || '',
-    fitness_level: initialData?.fitness_level || 'Beginner',
-    goals: initialData?.goals || ''
+    name: '',
+    age: '',
+    fitness_level: 'Beginner',
+    goals: '',
+    user_email: ''
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        age: initialData.age || '',
+        fitness_level: initialData.fitness_level || 'Beginner',
+        goals: initialData.goals || '',
+        user_email: initialData.user_email || '' 
+      });
+    } else {
+      setFormData({
+        name: '',
+        age: '',
+        fitness_level: 'Beginner',
+        goals: '',
+        user_email: ''
+      });
+    }
+  }, [initialData]); 
+
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
@@ -23,8 +45,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Client-side validation
+
     if (!formData.name || formData.name.length < 2 || formData.name.length > 50) {
       setError('Name must be 2-50 characters');
       return;
@@ -43,10 +64,18 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
       return;
     }
 
-    onSubmit({
+
+    const submitData = {
       ...formData,
       age: ageNum
-    });
+    };
+
+
+    if (isEdit && initialData) {
+      submitData.id = initialData.id; 
+    }
+
+    onSubmit(submitData);
   };
 
   return (
@@ -58,7 +87,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="name"
-            label="Name "
+            label="Name *"
             fullWidth
             value={formData.name}
             onChange={handleChange}
@@ -67,7 +96,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="age"
-            label="Age "
+            label="Age *"
             type="number"
             fullWidth
             value={formData.age}
@@ -81,6 +110,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
             label="Client Email (optional)"
             fullWidth
             placeholder="maya@fitcoach.com"
+            value={formData.user_email}
             onChange={handleChange}
           />
           <FormControl fullWidth margin="dense">
@@ -99,7 +129,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
           <TextField
             margin="dense"
             name="goals"
-            label="Goals "
+            label="Goals *"
             multiline
             rows={4}
             fullWidth
@@ -110,7 +140,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
         </form>
       </DialogContent>
       <DialogActions>
-        <Button 
+        <Button
           onClick={onClose}
           variant="outlined"
           sx={{
@@ -125,13 +155,14 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
               borderWidth: 2,
               bgcolor: '#737373'
             }
-          }}>
+          }}
+        >
           Cancel
         </Button>
-        <Button 
-        onClick={handleSubmit} 
-        variant="outlined"
-        sx={{
+        <Button
+          onClick={handleSubmit}
+          variant="outlined"
+          sx={{
             color: '#000',
             borderColor: '#000',
             borderWidth: 2,
@@ -143,7 +174,8 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
               borderWidth: 2,
               bgcolor: '#737373'
             }
-          }}>
+          }}
+        >
           {isEdit ? 'Save Changes' : 'Create Client'}
         </Button>
       </DialogActions>

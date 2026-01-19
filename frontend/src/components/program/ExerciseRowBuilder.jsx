@@ -44,7 +44,7 @@ const ExerciseRowBuilder = ({exercise, onRemove, onChange, onMoveUp, onMoveDown,
         label="Sets"
         type="number"
         value={exercise.sets}
-        onChange={(e) => handleFieldChange('sets', parseInt(e.target.value) || 1)}
+        onChange={(e) => handleFieldChange('sets', parseInt(e.target.value) || 3)}
         inputProps={{ min: 1, max: 10 }}
         sx={{ width: 70 }}
       />
@@ -54,7 +54,7 @@ const ExerciseRowBuilder = ({exercise, onRemove, onChange, onMoveUp, onMoveDown,
         label="Reps"
         type="number"
         value={exercise.reps}
-        onChange={(e) => handleFieldChange('reps', parseInt(e.target.value) || 1)}
+        onChange={(e) => handleFieldChange('reps', parseInt(e.target.value) || 3)}
         inputProps={{ min: 1, max: 50 }}
         sx={{ width: 70 }}
       />

@@ -215,14 +215,9 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
               ⏱ REST: {Math.floor(restTime / 60)}:{String(restTime % 60).padStart(2, '0')}
             </Typography>
           ): client.status === 'resting' && restTime === 0 ? (
-            <Button 
-              variant="contained" 
-              color="success"
-              onClick={handleMarkComplete}
-              sx={{ width: '100%' }}
-            >
-              Start Next Set
-            </Button>
+             <Typography variant="h6" fontWeight="bold" align="center" color="success.main">
+                ✓ READY
+              </Typography>
           ) : client.status === 'complete' ? (
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h4" fontWeight="bold" color="success.main">
