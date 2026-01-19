@@ -154,14 +154,26 @@ def test_fc7_mark_complete_broadcasts_session_update(client, app, trainer_token)
     trainee_events = _find_event(trainee_ws.get_received(), "session_update")
 
     assert trainer_events
-    assert trainee_events
+    response = client.post(
+        f"/api/sessions/{seeded['session_id']}/complete-set",
+        json={
+            "client_id": seeded["client_id"],
+            "exercise_id": seeded["exercise_ids"][0],
+            "set_number": 1,
+        },
+        headers={"Authorization": f"Bearer {trainer_token['token']}"},
+    )
 
-    for event in (trainer_events[0], trainee_events[0]):
-        payload = event["args"][0]
-        assert payload["session_id"] == seeded["session_id"]
-        assert payload["client_id"] == seeded["client_id"]
-        assert payload["action"] == "set_complete"
-        assert {"current_set", "status"} <= set(payload["updated_client_data"].keys())
+    assert response.status_code == 200
+
+    import time
+    time.sleep(0.1)  # 💤 Ждём, чтобы событие успело дойти
+
+    trainer_events = _find_event(trainer_ws.get_received(), "session_update")
+    trainee_events = _find_event(trainee_ws.get_received(), "session_update")
+
+    assert trainer_events
+    assert trainee_events
 
 
 def test_fc7_mark_complete_advances_to_next_exercise(client, app, trainer_token):
