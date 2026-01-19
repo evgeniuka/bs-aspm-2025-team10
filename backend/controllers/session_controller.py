@@ -257,12 +257,13 @@ def complete_set(session_id):
     
     try:
         socketio = current_app.extensions['socketio']
+        room = f'session_{session_id}'
         socketio.emit('session_update', {
             'session_id': session_id,
             'client_id': data['client_id'],
             'action': 'set_complete',
             'updated_client_data': updated_client_data
-        }, room=f'session_{session_id}')
+        }, to=room, namespace='/')
         print(f"✅ WebSocket emit successful for client {data['client_id']}")
     except Exception as e:
         print(f"⚠️ WebSocket emit failed: {e}")
