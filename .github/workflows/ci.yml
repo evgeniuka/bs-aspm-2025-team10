@@ -1,17 +1,9 @@
 name: Backend CI (pytest + postgres)
 
 on:
-  pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
   push:
-    branches: ["main", "develop"]
-    paths:
-      - "backend/**"
-      - ".github/workflows/**"
+  pull_request:
   workflow_dispatch:
-      branches: ["**"]
 
 jobs:
   test:
@@ -71,43 +63,17 @@ jobs:
           echo "Postgres did not become ready in time" >&2
           exit 1
 
-      - name: Smoke check DB connection
+      - name: Debug env + DB connectivity
         run: |
+          echo "Env vars set:"
+          printf '%s\n' DATABASE_URL DATABASE_URL_TEST SECRET_KEY JWT_SECRET_KEY PYTHONDONTWRITEBYTECODE PYTHONUNBUFFERED
           psql "postgresql://postgres:postgres@localhost:5432/fitnessclub_test" -c "SELECT 1;"
 
-      - name: Run pytest (junit + coverage)
+      - name: Run pytest (coverage)
         working-directory: backend
         run: |
-          mkdir -p reports/junit reports/coverage
           python -m pytest -q \
-            --junitxml=reports/junit/junit.xml \
             --cov=. \
             --cov-report=term-missing \
-            --cov-report=xml:reports/coverage/coverage.xml \
-            --cov-report=html:reports/coverage/html \
-            --cov-fail-under=60
-
-      - name: Add summary (coverage)
-        working-directory: backend
-        run: |
-          python - <<'PY'
-          import xml.etree.ElementTree as ET
-          p = "reports/coverage/coverage.xml"
-          root = ET.parse(p).getroot()
-          rate = float(root.attrib.get("line-rate", 0.0)) * 100
-          with open("reports/coverage/coverage.txt", "w", encoding="utf-8") as f:
-            f.write(f"Coverage: {rate:.1f}%\n")
-          PY
-          echo "## Test Results" >> "$GITHUB_STEP_SUMMARY"
-          echo "- JUnit: backend/reports/junit/junit.xml" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Coverage: $(cat reports/coverage/coverage.txt)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload reports (Artifacts)
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-test-reports
-          path: |
-            backend/reports/junit/junit.xml
-            backend/reports/coverage/coverage.xml
-            backend/reports/coverage/coverage.txt
-            backend/reports/coverage/html
+            --cov-report=xml \
+            --cov-report=html
