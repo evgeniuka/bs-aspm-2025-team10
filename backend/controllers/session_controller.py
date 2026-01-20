@@ -264,15 +264,15 @@ def complete_set(session_id):
             'updated_client_data': updated_client_data
         }
         room = f'session_{session_id}'
-        socketio.emit('session_update', payload, room=room, namespace='/')
+        socketio.emit('session_update', payload, room=room, namespace='/', ignore_queue=True)
         room_members = None
         server = getattr(socketio, "server", None)
         if server is not None:
             room_members = server.manager.rooms.get('/', {}).get(room)
         if room_members:
             for sid in list(room_members):
-                socketio.emit('session_update', payload, to=sid, namespace='/')
-        socketio.emit('session_update', payload, broadcast=True, namespace='/')
+                socketio.emit('session_update', payload, to=sid, namespace='/', ignore_queue=True)
+        socketio.emit('session_update', payload, broadcast=True, namespace='/', ignore_queue=True)
         socketio.sleep(0)
         print(f"✅ WebSocket emit successful for client {data['client_id']}")
     except Exception as e:
