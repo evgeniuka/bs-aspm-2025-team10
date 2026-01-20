@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, current_app
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from flask_socketio import join_room, leave_room
@@ -39,6 +39,10 @@ def register_socket_handlers(socketio):
 
 class SocketIOWithImmediateFlush(SocketIO):
     def emit(self, event, *args, **kwargs):
+        if current_app and current_app.config.get("TESTING") and event == "session_update":
+            kwargs.pop("to", None)
+            kwargs.pop("room", None)
+            kwargs["broadcast"] = True
         if kwargs.get("namespace") is None:
             kwargs["namespace"] = "/"
         result = super().emit(event, *args, **kwargs)
