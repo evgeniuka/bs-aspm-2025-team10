@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import jwt
 from flask import jsonify, request
 
+from utils import jwt_utils
 from utils.jwt_utils import generate_token, token_required
 
 
@@ -44,6 +45,23 @@ def test_token_required_empty_bearer_token_returns_401(app):
 
 def test_token_required_invalid_token_returns_401(app):
     with app.test_request_context(headers={"Authorization": "Bearer invalid.token"}):
+        @token_required
+        def handler():
+            return jsonify({"ok": True}), 200
+
+        response, status = handler()
+
+    assert status == 401
+    assert response.get_json()["error"] == "Token is invalid or expired"
+
+
+def test_token_required_decode_failure_returns_401(app, monkeypatch):
+    def raise_decode(*args, **kwargs):
+        raise ValueError("decode boom")
+
+    monkeypatch.setattr(jwt_utils.jwt, "decode", raise_decode)
+
+    with app.test_request_context(headers={"Authorization": "Bearer something"}):
         @token_required
         def handler():
             return jsonify({"ok": True}), 200

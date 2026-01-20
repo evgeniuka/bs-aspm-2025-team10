@@ -1,6 +1,3 @@
-import pytest
-from flask_socketio import SocketIOTestClient
-
 from models import db
 from models.client import Client
 from models.exercise import Exercise
@@ -102,15 +99,12 @@ def _seed_session_with_program(app, client, trainer_token, sets_per_exercise, re
     }
 
 
-def _join_session_room(test_client, session_id, trainee_id=None):
-    if trainee_id is None:
-        test_client.emit("join_session", {"session_id": session_id})
-    else:
-        test_client.emit("trainee_join_session", {"session_id": session_id, "trainee_id": trainee_id})
+class DummySocketIO:
+    def __init__(self):
+        self.emitted = []
 
-
-def _find_events(received, name):
-    return [item for item in received if item["name"] == name]
+    def emit(self, name, payload, room=None):
+        self.emitted.append({"name": name, "payload": payload, "room": room})
 
 
 def test_fc7_complete_set_logs_workout_and_returns_updated_state(client, app, trainer_token):
@@ -203,19 +197,10 @@ def test_fc7_complete_set_marks_program_completed(client, app, trainer_token):
         assert session_client.status == "completed"
 
 
-def test_fc7_complete_set_emits_websocket_update(client, app, trainer_token):
+def test_fc7_complete_set_emits_websocket_update(client, app, trainer_token, monkeypatch):
     seeded = _seed_session_with_program(app, client, trainer_token, sets_per_exercise=[1], rest_seconds=0)
-    socketio = app.extensions["socketio"]
-
-    trainer_ws = SocketIOTestClient(app, socketio, flask_test_client=client)
-    trainee_http = app.test_client()
-    trainee_ws = SocketIOTestClient(app, socketio, flask_test_client=trainee_http)
-
-    _join_session_room(trainer_ws, seeded["session_id"])
-    _join_session_room(trainee_ws, seeded["session_id"], trainee_id=seeded["client_id"])
-
-    trainer_ws.get_received()
-    trainee_ws.get_received()
+    dummy_socketio = DummySocketIO()
+    monkeypatch.setitem(app.extensions, "socketio", dummy_socketio)
 
     response = client.post(
         f"/api/sessions/{seeded['session_id']}/complete-set",
@@ -228,13 +213,10 @@ def test_fc7_complete_set_emits_websocket_update(client, app, trainer_token):
     )
 
     assert response.status_code == 200
-
-    import time
-
-    time.sleep(0.1)
-
-    trainer_events = _find_events(trainer_ws.get_received(), "session_update")
-    trainee_events = _find_events(trainee_ws.get_received(), "session_update")
-
-    if not trainer_events or not trainee_events:
-        pytest.skip("WebSocket event delivery is flaky in test environment.")
+    session_events = [
+        event for event in dummy_socketio.emitted if event["name"] == "session_update"
+    ]
+    assert session_events
+    assert session_events[0]["payload"]["session_id"] == seeded["session_id"]
+    assert session_events[0]["payload"]["client_id"] == seeded["client_id"]
+    assert session_events[0]["room"] == f"session_{seeded['session_id']}"
