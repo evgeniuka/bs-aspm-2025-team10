@@ -45,6 +45,7 @@ def _create_clients_and_programs(app, trainer_id, count=2):
                 notes="Session prep",
             )
             db.session.add(program)
+            db.session.flush()
             client_ids.append(client.id)
             program_ids.append(program.id)
         db.session.commit()

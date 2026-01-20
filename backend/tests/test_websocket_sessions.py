@@ -11,6 +11,7 @@ def test_websocket_join_session():
     client.emit("join_session", {"session_id": 123})
 
     socketio.emit("session_update", {"status": "ok"}, to="session_123")
+    socketio.sleep(0)
     received = client.get_received()
 
     assert any(message["name"] == "session_update" for message in received)
@@ -28,6 +29,7 @@ def test_websocket_broadcast_update():
     client_b.emit("join_session", {"session_id": 55})
 
     socketio.emit("session_update", {"client_id": 7}, to="session_55")
+    socketio.sleep(0)
 
     received_a = client_a.get_received()
     received_b = client_b.get_received()
