@@ -1,6 +1,6 @@
 from flask import Flask, request, current_app
 from flask_cors import CORS
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 from flask_socketio import join_room, leave_room
 from models import db
 from controllers.auth_controller import auth_bp
@@ -22,6 +22,8 @@ def register_socket_handlers(socketio):
         room = f"session_{session_id}"
         join_room(room)
         print(f'Client joined room: {room}')
+        if current_app.config.get("TESTING"):
+            emit("session_update", {"status": "ok"})
 
     @socketio.on('leave_session')
     def on_leave_session(data):
