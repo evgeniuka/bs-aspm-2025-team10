@@ -167,12 +167,19 @@ if __name__ == '__main__':
     app, socketio = create_app()
     register_socket_handlers(app)
 
-    print("📋 Registered routes:")
-    for rule in app.url_map.iter_rules():
-        if 'trainee' in rule.rule:
-            print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+    if os.getenv("WERKZEUG_RUN_MAIN") != "true":
+        print("📋 Registered routes:")
+        for rule in app.url_map.iter_rules():
+            if 'trainee' in rule.rule:
+                print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
 
-    socketio.run(app, debug=True, port=5000)
+    debug = os.getenv("FLASK_DEBUG", "1") == "1"
+    socketio.run(
+        app,
+        debug=debug,
+        port=5000,
+        allow_unsafe_werkzeug=debug,
+    )
 # def create_app():
 #     app = Flask(__name__)
 #     app.config.from_object(Config)
