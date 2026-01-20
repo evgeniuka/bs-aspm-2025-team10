@@ -1,8 +1,9 @@
-import jwt
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
-from flask import request, jsonify, current_app
-from models.user import User
+
+import jwt
+from flask import current_app, jsonify, request
+
 
 def generate_token(user_id, role):
     """Generate JWT token"""
@@ -11,19 +12,21 @@ def generate_token(user_id, role):
         'role': role,
         'exp': datetime.utcnow() + current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
         'iat': datetime.utcnow()
-    } 
+    }
     return jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
+
 
 def decode_token(token):
     """Вспомогательная функция для расшифровки"""
     try:
-          return jwt.decode(
-            token, 
-            current_app.config['SECRET_KEY'], 
-            algorithms=["HS256"]
+        return jwt.decode(
+            token,
+            current_app.config['JWT_SECRET_KEY'],
+            algorithms=["HS256"],
         )
-    except:
+    except Exception:
         return None
+
 
 def token_required(f):
     @wraps(f)
@@ -31,37 +34,33 @@ def token_required(f):
         token = None
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
-            try:
-                token = auth_header.split(" ")[1]
-            except IndexError:
-                return jsonify({'message': 'Token format invalid'}), 401
+            if auth_header == "Bearer":
+                return jsonify({'error': 'Invalid token format'}), 401
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+                if not token:
+                    return jsonify({'error': 'Invalid token format'}), 401
+            else:
+                token = auth_header
 
         if not token:
-            return jsonify({'message': 'Token is missing'}), 401
+            return jsonify({'error': 'Token is missing'}), 401
 
         try:
-           
             data = jwt.decode(
-                token, 
-                current_app.config['JWT_SECRET_KEY'], 
-                algorithms=["HS256"]
-)
-            
+                token,
+                current_app.config['JWT_SECRET_KEY'],
+                algorithms=["HS256"],
+            )
+            request.user_id = data.get('user_id')
+            request.user_role = data.get('role')
 
-            current_user = User.query.get(data['user_id'])
-            
-            if not current_user:
-                return jsonify({'message': 'User not found'}), 401
-
-            request.user_id = current_user.id
-            request.user_role = current_user.role  
-            
         except jwt.ExpiredSignatureError:
-            return jsonify({'message': 'Token has expired'}), 401
+            return jsonify({'error': 'Token is invalid or expired'}), 401
         except jwt.InvalidTokenError:
-            return jsonify({'message': 'Signature verification failed'}), 401
-        except Exception as e:
-            return jsonify({'message': str(e)}), 401
+            return jsonify({'error': 'Token is invalid or expired'}), 401
+        except Exception:
+            return jsonify({'error': 'Token is invalid or expired'}), 401
 
         return f(*args, **kwargs)
     return decorated
