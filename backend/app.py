@@ -44,7 +44,12 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
-    socketio = SocketIO(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins=app.config['CORS_ORIGINS'],
+        async_mode="threading",
+        async_handlers=False,
+    )
     register_socket_handlers(socketio)
     
     app.register_blueprint(auth_bp)
