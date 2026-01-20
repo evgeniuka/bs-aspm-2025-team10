@@ -24,3 +24,7 @@ yarn-error.log*
 # VS Code temp
 tempCodeRunnerFile.py
 
+
+# Vite cache
+frontend/.vite/
+
