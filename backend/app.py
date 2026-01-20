@@ -37,6 +37,13 @@ def register_socket_handlers(socketio):
         print(f'Client disconnected: {request.sid}')
 
 
+class SocketIOWithImmediateFlush(SocketIO):
+    def emit(self, event, *args, **kwargs):
+        result = super().emit(event, *args, **kwargs)
+        self.sleep(0)
+        return result
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -44,7 +51,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
-    socketio = SocketIO(
+    socketio = SocketIOWithImmediateFlush(
         app,
         cors_allowed_origins=app.config['CORS_ORIGINS'],
         async_mode="threading",
