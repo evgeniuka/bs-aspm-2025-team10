@@ -22,6 +22,13 @@ const equipmentIcons = {
   machine: '⚙️',
   cable: '🔗',
   kettlebell: '🔔',
+  resistance_band: '🪢',
+  ab_wheel: '🛞',
+  medicine_ball: '🏀',
+  exercise_ball: '⚽',
+  pull_up_bar: '🏋️‍♀️',
+  parallettes: '🤸',
+  sandbag: '🧱',
   other: '🔄'
 };
 
@@ -29,6 +36,7 @@ const ExerciseCard = ({ exercise, onAdd }) => {
   const truncatedDesc = exercise.description.length > 120
     ? exercise.description.substring(0, 120) + '...'
     : exercise.description;
+
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

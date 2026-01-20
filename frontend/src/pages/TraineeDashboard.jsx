@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Typography,
-  Grid,
-  Paper,
-  Card,
-  CardContent,
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Grid, 
+  Paper, 
+  Card, 
+  CardContent, 
   Divider,
   CircularProgress,
   Snackbar,
@@ -25,149 +25,102 @@ import { socketService } from '../services/socket';
 const TraineeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const [client, setClient] = useState(null);
-  const [clientId, setClientId] = useState(null);
-
   const [lastSession, setLastSession] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState('');
   const [notification, setNotification] = useState('');
 
-  // 1) Load client profile + last session (ONLY ONCE)
   useEffect(() => {
     const fetchData = async () => {
-      if (user?.role === 'trainer') {
+      if (!user || user.role === 'trainer') {
         setLoading(false);
         return;
       }
 
       try {
-        setError('');
-
         const clientResponse = await clientService.getMyClient();
-        console.log('📊 Client data:', clientResponse.data);
-        console.log('🆔 Client ID:', clientResponse.data.id);
-
         setClient(clientResponse.data);
-        setClientId(clientResponse.data.id);
 
         const sessionsResponse = await clientService.getTraineeSessions();
-        if (sessionsResponse.data?.sessions?.length > 0) {
+        if (sessionsResponse.data.sessions?.length > 0) {
           setLastSession(sessionsResponse.data.sessions[0]);
         }
       } catch (err) {
-        console.error(err);
+        console.error('❌ Error loading profile:', err);
         setError('Failed to load your profile');
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchData();
-    }
+    fetchData();
   }, [user]);
 
-  // 2) Active session check + WebSocket setup (depends on clientId)
   useEffect(() => {
-    console.log('🔄 TraineeDashboard mounted');
+    if (!client || !user) return;
 
-    if (!user?.id) {
-      console.warn('⚠️ No user found, cannot connect to WebSocket');
-      return;
-    }
-
-    if (user?.role === 'trainer') {
-      // Not a trainee dashboard use-case
-      return;
-    }
-
-    if (!clientId) {
-      console.log('ℹ️ clientId not ready yet, skipping websocket init');
-      return;
-    }
-
-    let isMounted = true;
-    let cleanupSocket = () => {};
+    console.log('🔄 Dashboard Sync Check Started');
 
     const checkActiveSession = async () => {
       try {
-        // NOTE: this assumes clientService baseURL already includes "/api"
-        // If not, change to: await clientService.get('/api/trainee/session')
-        const response = await clientService.get('/trainee/session');
-
-        if (response.data?.session_id) {
-          console.log('✅ Active session found, redirecting to live session');
+        const response = await clientService.getTraineeActiveSession();
+        
+        if (response.data?.session_id && response.data.status !== 'completed') {
+          console.log('🚀 Active session found! Reconnecting...');
           navigate('/trainee/live-session');
           return true;
         }
-      } catch (e) {
-        console.log('ℹ️ No active session');
+      } catch (error) {
+        console.log('ℹ️ No existing active session.');
       }
       return false;
     };
 
-    const setupWebSocket = async () => {
-      try {
-        console.log('🔌 Connecting to WebSocket for client:', clientId);
+    const setupLiveSync = () => {
+      console.log('🔌 Setting up background listener for Client:', client.id);
+      const socket = socketService.connect();
 
-        const socket = socketService.connect();
+      socket.on('connect', () => {
+        socketService.emit('trainee_connect', { trainee_id: client.id });
+      });
 
-        const onConnect = () => {
-          console.log('✅ WebSocket connected, emitting trainee_connect');
-          socketService.emit('trainee_connect', { trainee_id: clientId });
-        };
+      socketService.on('session_started', (data) => {
+        console.log('🔔 Session started by trainer:', data);
+        setNotification('Your trainer started a training session!');
+        
+        setTimeout(() => {
+          navigate('/trainee/live-session');
+        }, 1500);
+      });
+    };
 
-        const onSessionStarted = (data) => {
-          console.log('🔔 Session started notification:', data);
-          if (!isMounted) return;
-
-          setNotification('Your trainer started a training session!');
-          setTimeout(() => {
-            navigate('/trainee/live-session');
-          }, 2000);
-        };
-
-        socket.on('connect', onConnect);
-        socketService.on('session_started', onSessionStarted);
-
-        return () => {
-          socket.off('connect', onConnect);
-          socketService.off('session_started', onSessionStarted);
-
-          // If your socketService supports a disconnect, use it:
-          // socketService.disconnect();
-        };
-      } catch (e) {
-        console.error('❌ Failed to setup WebSocket:', e);
-        return () => {};
+    const initSync = async () => {
+      const alreadyInSession = await checkActiveSession();
+      if (!alreadyInSession) {
+        setupLiveSync();
       }
     };
 
-    (async () => {
-      const hasActiveSession = await checkActiveSession();
-      if (!hasActiveSession) {
-        cleanupSocket = await setupWebSocket();
-      }
-    })();
+    initSync();
 
     return () => {
-      console.log('🧹 TraineeDashboard unmounting');
-      isMounted = false;
-      cleanupSocket();
+      console.log('🧹 Cleaning up Dashboard listeners');
+      socketService.off('session_started');
+      socketService.off('connect');
     };
-  }, [navigate, user, clientId]);
+  }, [client, navigate, user]);
+
+
 
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Never';
-
+    
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
+    
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -175,33 +128,19 @@ const TraineeDashboard = () => {
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+      <CircularProgress />
+    </Box>
+  );
 
-  if (error) {
-    return (
-      <Container sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography color="error">{error}</Typography>
-        </Paper>
-      </Container>
-    );
-  }
-
-  if (!client) {
-    return (
-      <Container sx={{ mt: 4 }}>
-        <Paper sx={{ p: 3, textAlign: 'center' }}>
-          <Typography>No training profile assigned yet. Please contact your trainer.</Typography>
-        </Paper>
-      </Container>
-    );
-  }
+  if (!client) return (
+    <Container sx={{ mt: 4 }}>
+      <Paper sx={{ p: 3, textAlign: 'center' }}>
+        <Typography>No training profile assigned yet. Please contact your trainer.</Typography>
+      </Paper>
+    </Container>
+  );
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -241,16 +180,16 @@ const TraineeDashboard = () => {
         {/* Progress Card */}
         <Grid item xs={12} md={8}>
           <Card
-            sx={{
+            sx={{ 
               height: '100%',
               cursor: 'pointer',
               borderRadius: 3,
               transition: 'all 0.2s',
-              '&:hover': {
-                boxShadow: 6,
+              '&:hover': { 
+                boxShadow: 6, 
                 transform: 'translateY(-2px)',
-                bgcolor: '#f8f9fa',
-              },
+                bgcolor: '#f8f9fa'
+              }
             }}
             onClick={() => navigate('/trainee/analytics')}
           >
@@ -260,7 +199,7 @@ const TraineeDashboard = () => {
                 <Typography variant="h6">My Progress</Typography>
               </Box>
               <Divider sx={{ mb: 2 }} />
-
+              
               <Grid container spacing={2}>
                 <Grid item xs={6}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -309,9 +248,9 @@ const TraineeDashboard = () => {
               </Grid>
 
               <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #eee' }}>
-                <Typography
-                  variant="body2"
-                  color="primary.main"
+                <Typography 
+                  variant="body2" 
+                  color="primary.main" 
                   fontWeight="bold"
                   sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
                 >
@@ -325,12 +264,12 @@ const TraineeDashboard = () => {
         {/* Training History Card */}
         <Grid item xs={12} md={6}>
           <Card
-            sx={{
-              cursor: 'pointer',
+            sx={{ 
+              cursor: 'pointer', 
               height: '100%',
               borderRadius: 3,
               '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' },
-              transition: 'all 0.2s',
+              transition: 'all 0.2s'
             }}
             onClick={() => navigate('/trainee/history')}
           >

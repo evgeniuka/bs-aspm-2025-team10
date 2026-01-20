@@ -1,5 +1,3 @@
-// frontend/src/pages/TraineeAnalytics.jsx
-
 import React, { useState, useEffect } from 'react';
 import {
   Container,

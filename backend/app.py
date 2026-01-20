@@ -5,12 +5,64 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from models import db
 from config import Config
+from threading import Timer
+import time
 from dotenv import load_dotenv
 load_dotenv()
 
 
 socketio = SocketIO()
 
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    
+    # Initialize extensions
+    db.init_app(app)
+    CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+    
+    app.extensions['socketio'] = socketio
+    
+    # Import blueprints AFTER db.init_app()
+    from controllers.auth_controller import auth_bp
+    from controllers.client_controller import client_bp
+    from controllers.exercise_controller import exercise_bp
+    from controllers.program_controller import program_bp
+    from controllers.session_controller import session_bp
+    from controllers.trainer_history_controller import trainer_history_bp
+    from controllers.trainee_history_controller import trainee_history_bp
+    from controllers.trainer_analytics_controller import trainer_analytics_bp
+    from controllers.trainee_analytics_controller import trainee_analytics_bp
+    from controllers.trainee_session_controller import trainee_session_bp
+    
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(client_bp)
+    app.register_blueprint(exercise_bp)
+    app.register_blueprint(program_bp)
+    app.register_blueprint(session_bp)
+    app.register_blueprint(trainer_history_bp)
+    app.register_blueprint(trainee_history_bp)
+    app.register_blueprint(trainer_analytics_bp)
+    app.register_blueprint(trainee_analytics_bp)
+    app.register_blueprint(trainee_session_bp, url_prefix='/api/trainee')
+     
+    with app.app_context():
+        db.create_all()
+    
+    return app, socketio
+
+if __name__ == '__main__':
+    app, socketio = create_app()
+
+
+    print("📋 Registered routes:")
+    for rule in app.url_map.iter_rules():
+        if 'trainee' in rule.rule:
+            print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+
+            
 def register_socket_handlers():
     @socketio.on('connect')
     def handle_connect():
@@ -119,57 +171,58 @@ def register_socket_handlers():
     def handle_disconnect():
         print(f'🔌 Client disconnected: {request.sid}')
 
-def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
-    
-    # Initialize extensions
-    db.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
-    
-    app.extensions['socketio'] = socketio
-    
-    # Import blueprints AFTER db.init_app()
-    from controllers.auth_controller import auth_bp
-    from controllers.client_controller import client_bp
-    from controllers.exercise_controller import exercise_bp
-    from controllers.program_controller import program_bp
-    from controllers.session_controller import session_bp
-    from controllers.trainer_history_controller import trainer_history_bp
-    from controllers.trainee_history_controller import trainee_history_bp
-    from controllers.trainer_analytics_controller import trainer_analytics_bp
-    from controllers.trainee_analytics_controller import trainee_analytics_bp
-    from controllers.trainee_session_controller import trainee_session_bp
-    
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(client_bp)
-    app.register_blueprint(exercise_bp)
-    app.register_blueprint(program_bp)
-    app.register_blueprint(session_bp)
-    app.register_blueprint(trainer_history_bp)
-    app.register_blueprint(trainee_history_bp)
-    app.register_blueprint(trainer_analytics_bp)
-    app.register_blueprint(trainee_analytics_bp)
-    app.register_blueprint(trainee_session_bp, url_prefix='/api/trainee')
-     
-    with app.app_context():
-        db.create_all()
-
-    register_socket_handlers()
-    
-    return app, socketio
-
-if __name__ == '__main__':
-    app, socketio = create_app()
-
-
-    print("📋 Registered routes:")
-    for rule in app.url_map.iter_rules():
-        if 'trainee' in rule.rule:
-            print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
-
-            
-    if __name__ == "__main__":
-        allow = os.getenv("ALLOW_UNSAFE_WERKZEUG", "1") == "1"
-        socketio.run(app, host="127.0.0.1", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, port=5000)
+# def create_app():
+#     app = Flask(__name__)
+#     app.config.from_object(Config)
+#
+#     # Initialize extensions
+#     db.init_app(app)
+#     CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
+#     socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+#
+#     app.extensions['socketio'] = socketio
+#
+#     # Import blueprints AFTER db.init_app()
+#     from controllers.auth_controller import auth_bp
+#     from controllers.client_controller import client_bp
+#     from controllers.exercise_controller import exercise_bp
+#     from controllers.program_controller import program_bp
+#     from controllers.session_controller import session_bp
+#     from controllers.trainer_history_controller import trainer_history_bp
+#     from controllers.trainee_history_controller import trainee_history_bp
+#     from controllers.trainer_analytics_controller import trainer_analytics_bp
+#     from controllers.trainee_analytics_controller import trainee_analytics_bp
+#     from controllers.trainee_session_controller import trainee_session_bp
+#
+#     app.register_blueprint(auth_bp)
+#     app.register_blueprint(client_bp)
+#     app.register_blueprint(exercise_bp)
+#     app.register_blueprint(program_bp)
+#     app.register_blueprint(session_bp)
+#     app.register_blueprint(trainer_history_bp)
+#     app.register_blueprint(trainee_history_bp)
+#     app.register_blueprint(trainer_analytics_bp)
+#     app.register_blueprint(trainee_analytics_bp)
+#     app.register_blueprint(trainee_session_bp, url_prefix='/api/trainee')
+#
+#     with app.app_context():
+#         db.create_all()
+#
+#     register_socket_handlers()
+#
+#     return app, socketio
+#
+# if __name__ == '__main__':
+#     app, socketio = create_app()
+#
+#
+#     print("📋 Registered routes:")
+#     for rule in app.url_map.iter_rules():
+#         if 'trainee' in rule.rule:
+#             print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+#
+#
+#     if __name__ == "__main__":
+#         allow = os.getenv("ALLOW_UNSAFE_WERKZEUG", "1") == "1"
+#         socketio.run(app, host="127.0.0.1", port=5000, debug=True, allow_unsafe_werkzeug=True)

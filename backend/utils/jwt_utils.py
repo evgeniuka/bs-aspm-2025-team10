@@ -2,6 +2,7 @@ import jwt
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, current_app
+from models.user import User
 
 def generate_token(user_id, role):
     """Generate JWT token"""
@@ -14,41 +15,57 @@ def generate_token(user_id, role):
     return jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
 
 def decode_token(token):
-    """Decode and verify JWT token"""
+    """Вспомогательная функция для расшифровки"""
     try:
-        payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
-        return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
+          return jwt.decode(
+            token, 
+            current_app.config['SECRET_KEY'], 
+            algorithms=["HS256"]
+        )
+    except:
         return None
 
 def token_required(f):
-    """Decorator to protect routes with JWT"""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
-        
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             try:
-                token = auth_header.split(' ')[1]  
+                token = auth_header.split(" ")[1]
             except IndexError:
-                return jsonify({'error': 'Invalid token format'}), 401
-        
+                return jsonify({'message': 'Token format invalid'}), 401
+
         if not token:
-            return jsonify({'error': 'Token is missing'}), 401
-        
-        payload = decode_token(token)
-        if not payload:
-            return jsonify({'error': 'Token is invalid or expired'}), 401
-        
-        request.user_id = payload['user_id']
-        request.user_role = payload['role']
-        
+            return jsonify({'message': 'Token is missing'}), 401
+
+        try:
+           
+            data = jwt.decode(
+                token, 
+                current_app.config['JWT_SECRET_KEY'], 
+                algorithms=["HS256"]
+)
+            
+
+            current_user = User.query.get(data['user_id'])
+            
+            if not current_user:
+                return jsonify({'message': 'User not found'}), 401
+
+            request.user_id = current_user.id
+            request.user_role = current_user.role  
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token has expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Signature verification failed'}), 401
+        except Exception as e:
+            return jsonify({'message': str(e)}), 401
+
         return f(*args, **kwargs)
-    
     return decorated
+
 
 def role_required(required_role):
     """Decorator to check user role"""

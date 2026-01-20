@@ -13,82 +13,51 @@ import CheckIcon from '@mui/icons-material/Check';
 import { clientService } from '../../services/clientService';
 
 const ClientQuadrant = ({ client, borderColor, sessionId }) => {
-  const [optimisticClient, setOptimisticClient] = useState(client);
-  const currentExerciseIndex = optimisticClient.current_exercise_index;
-  const currentExercise = optimisticClient.program.exercises[currentExerciseIndex];
-  const totalExercises = optimisticClient.program.exercises.length;
-  const [restTime, setRestTime] = useState(
-    optimisticClient.rest_time_remaining || currentExercise?.rest_seconds || 60
-  );
+  const currentExerciseIndex = client.current_exercise_index;
+  const currentExercise = client.program.exercises[currentExerciseIndex];
+  const totalExercises = client.program.exercises.length;
+  const [restTime, setRestTime] = useState(client.rest_time_remaining || currentExercise?.rest_seconds || 60);
 
   const [showCompleteButton, setShowCompleteButton] = useState(false);
   const [loading, setLoading] = useState(false); 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
-    setOptimisticClient(client);
-  }, [client]);
-
-  useEffect(() => {
-    const exercise = optimisticClient.program.exercises[optimisticClient.current_exercise_index];
-    setRestTime(optimisticClient.rest_time_remaining || exercise?.rest_seconds || 60);
+    const exercise = client.program.exercises[client.current_exercise_index];
+    setRestTime(client.rest_time_remaining || exercise?.rest_seconds || 60);
   }, [
-    optimisticClient.current_exercise_index, 
-    optimisticClient.program.exercises, 
-    optimisticClient.rest_time_remaining
+    client.current_exercise_index, 
+    client.program.exercises, 
+    client.rest_time_remaining
   ]);
 
   useEffect(() => {
     let interval;
-    if (optimisticClient.status === 'resting' && restTime > 0) {
+    if (client.status === 'resting' && restTime > 0) {
       interval = setInterval(() => {
         setRestTime(prev => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [optimisticClient.status, restTime]);
+  }, [client.status, restTime]);
 
   const overallProgress = totalExercises > 0
     ? ((currentExerciseIndex + 1) / totalExercises) * 100
     : 0;
 
   const handleTap = () => {
-    if (optimisticClient.status === 'complete' || optimisticClient.status === 'completed') return;
+    if (client.status === 'complete') return;
     setShowCompleteButton(prev => !prev); 
   };
 
   const handleMarkComplete = async () => {
     setLoading(true);  
-    setOptimisticClient(prev => {
-      const exercise = prev.program.exercises[prev.current_exercise_index];
-      if (!exercise) return prev;
-      const totalSets = exercise.sets || 0;
-      if (prev.current_set < totalSets) {
-        return {
-          ...prev,
-          current_set: prev.current_set + 1,
-          status: 'resting',
-          rest_time_remaining: exercise.rest_seconds || prev.rest_time_remaining
-        };
-      }
-
-      const nextExerciseIndex = prev.current_exercise_index + 1;
-      const nextStatus = nextExerciseIndex >= prev.program.exercises.length ? 'completed' : 'active';
-
-      return {
-        ...prev,
-        current_exercise_index: nextExerciseIndex,
-        current_set: 1,
-        status: nextStatus,
-        rest_time_remaining: 0
-      };
-    });
     
     try {
       await clientService.markSetComplete(sessionId, {
-        client_id: optimisticClient.id,
+        client_id: client.id,
         exercise_id: currentExercise.id,
-        set_number: optimisticClient.current_set
+        set_number: client.current_set
       });
 
       setShowCompleteButton(false); 
@@ -123,15 +92,15 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
         flexDirection: 'column',
         justifyContent: 'space-between',
         height: '100%',
-        bgcolor: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? '#e8f5e9' : '#fff',
+        bgcolor: client.status === 'complete' ? '#e8f5e9' : '#fff',
         borderLeft: `8px solid ${borderColor}`,
         transition: 'all 0.3s ease',
-        cursor: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? 'default' : 'pointer',
-        opacity: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? 0.7 : 1,
-        pointerEvents: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? 'none' : 'auto',
+        cursor: client.status === 'complete' ? 'default' : 'pointer',
+        opacity: client.status === 'complete' ? 0.7 : 1,
+        pointerEvents: client.status === 'complete' ? 'none' : 'auto',
         '&:hover': {
-          borderLeftWidth: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? '8px' : '12px',
-          boxShadow: optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? 3 : 6
+          borderLeftWidth: client.status === 'complete' ? '8px' : '12px',
+          boxShadow: client.status === 'complete' ? 3 : 6
         }
       }}
     >
@@ -174,7 +143,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
                 e.stopPropagation();
                 handleMarkComplete();
               }}
-              disabled={loading || optimisticClient.status === 'resting'}  
+              disabled={loading}  
               sx={{
                 width: '100%',
                 py: 1.5,
@@ -190,10 +159,10 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
         {/* Client Info */}
         <Box>
           <Typography variant="h5" fontWeight="bold" sx={{ color: borderColor }}>
-            {optimisticClient.name}
+            {client.name}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {optimisticClient.program.name}
+            {client.program.name}
           </Typography>
         </Box>
 
@@ -232,7 +201,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
             </Typography>
 
             <Typography variant="body1" sx={{ mt: 1 }}>
-              Set {optimisticClient.current_set} of {currentExercise.sets}
+              Set {client.current_set} of {currentExercise.sets}
             </Typography>
           </>
         ) : (
@@ -241,20 +210,15 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
 
         {/* Status Display */}
         <Box sx={{ mt: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-          {optimisticClient.status === 'resting' && restTime > 0 ? (
+          {client.status === 'resting' && restTime > 0 ? (
             <Typography variant="h5" fontWeight="bold" color="warning.main" align="center">
               ⏱ REST: {Math.floor(restTime / 60)}:{String(restTime % 60).padStart(2, '0')}
             </Typography>
-          ): optimisticClient.status === 'resting' && restTime === 0 ? (
-            <Button 
-              variant="contained" 
-              color="success"
-              onClick={handleMarkComplete}
-              sx={{ width: '100%' }}
-            >
-              Start Next Set
-            </Button>
-          ) : optimisticClient.status === 'complete' || optimisticClient.status === 'completed' ? (
+          ): client.status === 'resting' && restTime === 0 ? (
+             <Typography variant="h6" fontWeight="bold" align="center" color="success.main">
+                ✓ READY
+              </Typography>
+          ) : client.status === 'complete' ? (
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h4" fontWeight="bold" color="success.main">
                 ✅ WORKOUT COMPLETE!
@@ -270,15 +234,15 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
               align="center"
               sx={{
                 color:
-                  optimisticClient.status === 'ready' || optimisticClient.status === 'active'
+                  client.status === 'ready'
                     ? 'success.main'
-                    : optimisticClient.status === 'in_progress'
+                    : client.status === 'in_progress'
                     ? 'warning.main'
                     : 'inherit'
               }}
             >
-              {(optimisticClient.status === 'ready' || optimisticClient.status === 'active') && '✓ READY'}
-              {optimisticClient.status === 'in_progress' && '🔥 IN PROGRESS'}
+              {client.status === 'ready' && '✓ READY'}
+              {client.status === 'in_progress' && '🔥 IN PROGRESS'}
             </Typography>
           )}
         </Box>

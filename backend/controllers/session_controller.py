@@ -273,6 +273,46 @@ def complete_set(session_id):
     }), 200
 
 
+@session_bp.route('/<int:session_id>/start-next-set', methods=['POST'])
+@token_required
+def start_next_set(session_id):
+    trainer_id = request.user_id
+    data = request.get_json()
+    client_id = data.get('client_id')
+    
+
+    session = Session.query.filter_by(id=session_id, trainer_id=trainer_id).first_or_404()
+    session_client = SessionClient.query.filter_by(
+        session_id=session_id, 
+        client_id=client_id
+    ).first_or_404()
+
+    session_client.status = 'working'  
+    session_client.rest_time_remaining = 0  
+    
+    db.session.commit()
+
+    updated_data = {
+        'status': 'working',
+        'rest_time_remaining': 0,
+        'current_set': session_client.current_set
+    }
+
+    try:
+        socketio = current_app.extensions['socketio']
+        socketio.emit('session_update', {
+            'session_id': session_id,
+            'client_id': client_id,
+            'action': 'set_started',
+            'updated_client_data': updated_data
+        }, room=f'session_{session_id}')
+        print(f"✅ WebSocket: Client {client_id} is now WORKING")
+    except Exception as e:
+        print(f"⚠️ Socket error: {e}")
+
+    return jsonify({'message': 'Next set started', 'updated_client': updated_data}), 200
+
+
 @session_bp.route('/<int:session_id>/end', methods=['POST'])
 @token_required
 def end_session(session_id):

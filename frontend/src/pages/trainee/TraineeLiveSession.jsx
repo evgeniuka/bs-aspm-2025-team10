@@ -12,29 +12,33 @@ const TraineeLiveSession = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    // Fetch active session
-    const fetchSession = async () => {
-      try {
-        console.log('📡 Fetching active session...');
-        
-        const response = await clientService.getTraineeActiveSession();
-        
-        console.log('✅ Session data received:', response.data);
-        setSession(response.data);
-        
-        // Join WebSocket room
-        const socket = socketService.connect();
-        
-        socket.on('connect', () => {
-          console.log('✅ WebSocket connected for live session');
-          
-          socketService.emit('trainee_join_session', {
-            session_id: response.data.session_id,
-            trainee_id: response.data.client_id
-          });
+useEffect(() => {
+  const fetchSession = async () => {
+   
+    try {
+      const response = await clientService.getTraineeActiveSession();
+      const initialData = response.data;
+      setSession(initialData);
+      
+      const socket = socketService.connect();
+
+      const joinRoom = () => {
+        socketService.emit('trainee_join_session', {
+          session_id: initialData.session_id,
+          trainee_id: initialData.client_id
         });
-        
+      };
+
+      if (socket.connected) joinRoom();
+      else socket.on('connect', joinRoom);
+
+
+      socket.on('session_update', (data) => {
+        console.log('🔄 Live Update:', data);
+ 
+        fetchSession(); 
+
+      });
       } catch (error) {
         console.error('❌ Error fetching session:', error);
         setError(error.response?.data?.error || 'Failed to load session');
@@ -51,7 +55,6 @@ const TraineeLiveSession = () => {
 
     fetchSession();
 
-    // Listen for WebSocket updates
     socketService.on('session_update', (data) => {
       console.log('🔄 Session update received:', data);
       
@@ -72,7 +75,6 @@ const TraineeLiveSession = () => {
       navigate('/trainee/dashboard');
     });
 
-    // Cleanup
     return () => {
       console.log('🧹 TraineeLiveSession unmounting');
       socketService.off('session_update');
