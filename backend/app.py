@@ -39,6 +39,8 @@ def register_socket_handlers(socketio):
 
 class SocketIOWithImmediateFlush(SocketIO):
     def emit(self, event, *args, **kwargs):
+        if kwargs.get("namespace") is None:
+            kwargs["namespace"] = "/"
         result = super().emit(event, *args, **kwargs)
         self.sleep(0)
         return result
