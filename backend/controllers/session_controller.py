@@ -257,12 +257,20 @@ def complete_set(session_id):
     
     try:
         socketio = current_app.extensions['socketio']
-        socketio.emit('session_update', {
+        payload = {
             'session_id': session_id,
             'client_id': data['client_id'],
             'action': 'set_complete',
             'updated_client_data': updated_client_data
-        }, room=f'session_{session_id}')
+        }
+        room = f'session_{session_id}'
+        socketio.emit('session_update', payload, room=room)
+        room_members = None
+        server = getattr(socketio, "server", None)
+        if server is not None:
+            room_members = server.manager.rooms.get('/', {}).get(room)
+        if not room_members:
+            socketio.emit('session_update', payload, broadcast=True)
         print(f"✅ WebSocket emit successful for client {data['client_id']}")
     except Exception as e:
         print(f"⚠️ WebSocket emit failed: {e}")
