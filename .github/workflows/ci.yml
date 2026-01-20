@@ -47,7 +47,6 @@ jobs:
 
       - name: Run tests (PR, no coverage gate)
         working-directory: backend
-        if: github.event_name == 'pull_request'
         run: |
           python -m pytest -q --cov=. --cov-report=term-missing --cov-report=xml --cov-report=html
 
