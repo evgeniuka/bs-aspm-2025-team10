@@ -228,6 +228,10 @@ def test_fc7_complete_set_emits_websocket_update(client, app, trainer_token):
 
     assert response.status_code == 200
 
+    import time
+
+    time.sleep(0.1)
+
     trainer_events = _find_events(trainer_ws.get_received(), "session_update")
     trainee_events = _find_events(trainee_ws.get_received(), "session_update")
 
