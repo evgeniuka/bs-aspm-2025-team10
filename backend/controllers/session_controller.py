@@ -269,7 +269,10 @@ def complete_set(session_id):
         server = getattr(socketio, "server", None)
         if server is not None:
             room_members = server.manager.rooms.get('/', {}).get(room)
-        if not room_members:
+        if room_members:
+            for sid in list(room_members):
+                socketio.emit('session_update', payload, to=sid, namespace='/')
+        else:
             socketio.emit('session_update', payload, broadcast=True, namespace='/')
         socketio.sleep(0)
         print(f"✅ WebSocket emit successful for client {data['client_id']}")
