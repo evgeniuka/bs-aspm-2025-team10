@@ -53,17 +53,7 @@ def create_app():
     
     return app, socketio
 
-if __name__ == '__main__':
-    app, socketio = create_app()
-
-
-    print("📋 Registered routes:")
-    for rule in app.url_map.iter_rules():
-        if 'trainee' in rule.rule:
-            print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
-
-            
-def register_socket_handlers():
+def register_socket_handlers(app):
     @socketio.on('connect')
     def handle_connect():
         print(f'✅ Client connected: {request.sid}')
@@ -170,6 +160,17 @@ def register_socket_handlers():
     @socketio.on('disconnect')
     def handle_disconnect():
         print(f'🔌 Client disconnected: {request.sid}')
+
+
+
+if __name__ == '__main__':
+    app, socketio = create_app()
+    register_socket_handlers(app)
+
+    print("📋 Registered routes:")
+    for rule in app.url_map.iter_rules():
+        if 'trainee' in rule.rule:
+            print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
 
     socketio.run(app, debug=True, port=5000)
 # def create_app():
