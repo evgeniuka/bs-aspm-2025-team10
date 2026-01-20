@@ -172,7 +172,7 @@ if __name__ == '__main__':
         if 'trainee' in rule.rule:
             print(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
 
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, host="127.0.0.1", port=5000, debug=True, allow_unsafe_werkzeug=True)
 # def create_app():
 #     app = Flask(__name__)
 #     app.config.from_object(Config)
