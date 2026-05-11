@@ -59,7 +59,7 @@ export const authService = {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.role;
-      } catch (e) {
+      } catch {
         console.error('Invalid JWT token');
         return null;
       }

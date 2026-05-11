@@ -53,7 +53,7 @@ const SplitScreenView = () => {
     console.log('🔌 Initializing WebSocket for session', sessionId);
     socketInitialized.current = true;  
 
-    const socket = socketService.connect();
+    socketService.connect();
     socketService.joinSession(sessionId);
 
     

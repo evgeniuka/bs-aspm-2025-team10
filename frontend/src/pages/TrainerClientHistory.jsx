@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -25,7 +25,6 @@ import { clientService } from '../services/clientService';
 
 const TrainerClientHistory = () => {
   const { clientId } = useParams();
-  const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

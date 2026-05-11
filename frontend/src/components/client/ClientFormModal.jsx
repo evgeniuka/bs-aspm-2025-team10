@@ -50,7 +50,7 @@ const ClientFormModal = ({ open, onClose, onSubmit, initialData = null }) => {
       setError('Name must be 2-50 characters');
       return;
     }
-    if (!/^[a-zA-Z\s\-]+$/.test(formData.name)) {
+    if (!/^[a-zA-Z\s-]+$/.test(formData.name)) {
       setError('Name can only contain letters, spaces, and hyphens');
       return;
     }

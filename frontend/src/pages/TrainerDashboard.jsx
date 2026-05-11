@@ -32,7 +32,7 @@ const TrainerDashboard = () => {
     try {
       const response = await clientService.getClients();
       setClients(response.data);
-    } catch (err) {
+    } catch {
       setError('Failed to load clients');
     } finally {
       setLoading(false);
@@ -73,7 +73,7 @@ const TrainerDashboard = () => {
       setSnackbar({ open: true, message: 'Client deactivated!', severity: 'info' });
       setOpenConfirm(false);
       setClientToDelete(null);
-    } catch (err) {
+    } catch {
       setSnackbar({ open: true, message: 'Failed to deactivate client', severity: 'error' });
     }
   };
@@ -235,4 +235,4 @@ const TrainerDashboard = () => {
   );
 };
 
-export default TrainerDashboard; 
+export default TrainerDashboard;

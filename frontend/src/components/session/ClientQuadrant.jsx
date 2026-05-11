@@ -17,6 +17,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   const currentExercise = client.program.exercises[currentExerciseIndex];
   const totalExercises = client.program.exercises.length;
   const [restTime, setRestTime] = useState(client.rest_time_remaining || currentExercise?.rest_seconds || 60);
+  const [displaySet, setDisplaySet] = useState(client.current_set || 1);
 
   const [showCompleteButton, setShowCompleteButton] = useState(false);
   const [loading, setLoading] = useState(false); 
@@ -28,8 +29,12 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   }, [
     client.current_exercise_index, 
     client.program.exercises, 
-    client.rest_time_remaining
+      client.rest_time_remaining
   ]);
+
+  useEffect(() => {
+    setDisplaySet(client.current_set || 1);
+  }, [client.current_set, client.current_exercise_index]);
 
   useEffect(() => {
     let interval;
@@ -44,6 +49,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   const overallProgress = totalExercises > 0
     ? ((currentExerciseIndex + 1) / totalExercises) * 100
     : 0;
+  const isActivelyResting = client.status === 'resting' && restTime > 0;
 
   const handleTap = () => {
     if (client.status === 'complete') return;
@@ -51,13 +57,19 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
   };
 
   const handleMarkComplete = async () => {
+    if (!currentExercise || isActivelyResting || loading) return;
+
+    const previousSet = displaySet;
+    const nextSet = Math.min(displaySet + 1, currentExercise.sets);
+
+    setDisplaySet(nextSet);
     setLoading(true);  
     
     try {
       await clientService.markSetComplete(sessionId, {
         client_id: client.id,
         exercise_id: currentExercise.id,
-        set_number: client.current_set
+        set_number: previousSet
       });
 
       setShowCompleteButton(false); 
@@ -69,6 +81,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
       });
     } catch (err) {
       console.error('Failed to mark complete:', err);
+      setDisplaySet(previousSet);
       setSnackbar({
         open: true,
         message: 'Failed to mark complete. Tap again.',
@@ -143,7 +156,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
                 e.stopPropagation();
                 handleMarkComplete();
               }}
-              disabled={loading}  
+              disabled={loading || isActivelyResting || !currentExercise}
               sx={{
                 width: '100%',
                 py: 1.5,
@@ -201,7 +214,7 @@ const ClientQuadrant = ({ client, borderColor, sessionId }) => {
             </Typography>
 
             <Typography variant="body1" sx={{ mt: 1 }}>
-              Set {client.current_set} of {currentExercise.sets}
+              Set {displaySet} of {currentExercise.sets}
             </Typography>
           </>
         ) : (

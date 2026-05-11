@@ -9,7 +9,6 @@ import {
   Box,
   Alert
 } from '@mui/material';
-import { format } from 'date-fns';
 
 const EndSessionDialog = ({ 
   open, 

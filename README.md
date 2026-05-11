@@ -1,57 +1,88 @@
-# 🏋️ FitCoach Pro
+# FitCoach Pro
 
-![Status](https://img.shields.io/badge/Status-Active-success)
-![Version](https://img.shields.io/badge/v1.0-blue)
+FitCoach Pro is a full-stack training management app for small-group personal training. It helps a trainer manage 2-4 trainees in the same live session while keeping each trainee's program, progress, rest timer, and workout history separate.
 
-**FitCoach Pro** is a personal training management system designed specifically for **Small Group Training**. It enables trainers to manage 2–4 clients simultaneously in real-time without losing focus on individual coaching.
+## Why It Matters
 
----
+Small-group training is hard to manage from a single screen: every trainee can be on a different exercise, set, weight, or rest interval. FitCoach Pro turns that workflow into a live dashboard with role-based trainer and trainee experiences.
 
-## 🚀 Key Features
+## Key Features
 
-* **⚡ Real-Time Split-Screen:** A synchronized 2×2 grid display that updates instantly via WebSockets, allowing trainers to track multiple clients at once.
-* **📝 Program Builder:** Create personalized workout plans using a built-in exercise library.
-* **👥 Role-Based Access:** Dedicated portals for **Trainers** (management & controls) and **Trainees** (progress view).
-* **📊 Analytics:** Automatic data logging and progress visualization for weights, volume, and consistency.
+- Trainer and trainee authentication with JWT-based role access.
+- Trainer dashboard for managing clients and workout programs.
+- Exercise library and program builder.
+- Real-time 2x2 split-screen session view powered by Socket.IO.
+- Set completion, rest timers, and session summaries.
+- Trainee history and analytics views.
+- Backend and frontend test coverage for core session flows.
+- GitHub Actions CI for backend tests with PostgreSQL.
 
----
+## Tech Stack
 
-## 🛠 Tech Stack
+- Frontend: React 19, Vite, Material UI, Recharts, Socket.IO client, Vitest.
+- Backend: Python, Flask, Flask-SQLAlchemy, Flask-SocketIO, PostgreSQL, JWT.
+- Tooling: ESLint, Pytest, GitHub Actions.
 
-* **Backend:** Python, Flask, Flask-SocketIO, PostgreSQL, SQLAlchemy.
-* **Frontend:** React, Vite, Tailwind CSS, Socket.io-client.
+## Project Structure
 
+```text
+backend/   Flask API, database models, Socket.IO handlers, seed scripts, tests
+frontend/  React/Vite application, UI components, pages, frontend tests
+docs/      Course documents and product planning artifacts
+```
 
-## 🧪 Testing
-Run the full test suite (including the new Feature 7 session logic):
-
-Bash
-cd backend
-pytest
-Team: Group 10 (BS-ASPM-2025)
-
----
-
-##Jira
-https://sce-ac.atlassian.net/jira/software/projects/ASPM25T10/boards/2205?atlOrigin=eyJpIjoiMjIzZjlmNGRhYWZmNDllZDgwNzllMGNmNzQ0M2JmODAiLCJwIjoiaiJ9
-
-
----
-
-
-## ⚙️ Quick Start
+## Quick Start
 
 ### Backend
+
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-flask db upgrade
 flask run
-Frontend
-Bash
+```
+
+The backend expects PostgreSQL by default. Configure `DATABASE_URL`, `SECRET_KEY`, `JWT_SECRET_KEY`, and `CORS_ORIGINS` in `backend/.env` for local development.
+
+### Frontend
+
+```bash
 cd frontend
 npm install
 npm run dev
----
+```
+
+The frontend runs on `http://localhost:5173` and proxies API calls to `http://localhost:5000`.
+
+## Tests
+
+### Backend
+
+```bash
+cd backend
+pytest
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm run lint
+npm run test
+npm run build
+```
+
+## Resume Highlights
+
+- Built a role-based full-stack fitness coaching platform with real-time session synchronization.
+- Designed a split-screen trainer workflow for monitoring up to four trainees at once.
+- Added automated tests for authentication, clients, exercises, programs, session state, and live updates.
+- Configured CI with PostgreSQL-backed backend tests.
+
+## Next Improvements
+
+- Add polished screenshots or a short demo GIF to the README.
+- Add Docker Compose for one-command local startup.
+- Add seed data instructions for a recruiter-friendly demo login.
+- Split the frontend bundle into smaller chunks.

@@ -28,7 +28,6 @@ const TraineeDashboard = () => {
   const [client, setClient] = useState(null);
   const [lastSession, setLastSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [notification, setNotification] = useState('');
 
   useEffect(() => {
@@ -48,7 +47,6 @@ const TraineeDashboard = () => {
         }
       } catch (err) {
         console.error('❌ Error loading profile:', err);
-        setError('Failed to load your profile');
       } finally {
         setLoading(false);
       }
@@ -71,7 +69,7 @@ const TraineeDashboard = () => {
           navigate('/trainee/live-session');
           return true;
         }
-      } catch (error) {
+      } catch {
         console.log('ℹ️ No existing active session.');
       }
       return false;

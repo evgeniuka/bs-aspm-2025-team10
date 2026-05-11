@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, TextField, FormControl, InputLabel, Select, MenuItem, Button, Grid, Alert, Snackbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { clientService } from '../services/clientService';
 import ExerciseLibrary from '../components/exercise/ExerciseLibrary';
 import ExerciseRowBuilder from '../components/program/ExerciseRowBuilder';
@@ -9,7 +8,6 @@ import ConfirmDialog from '../components/client/ConfirmDialog';
 
 
 const ProgramBuilder = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [programData, setProgramData] = useState({
@@ -112,7 +110,7 @@ const ProgramBuilder = () => {
     };
 
     try {
-      const response = await clientService.createProgram(data);
+      await clientService.createProgram(data);
             setSnackbar({ 
         open: true, 
         message: `Program "${programData.name}" created successfully!`, 

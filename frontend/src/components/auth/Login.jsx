@@ -10,7 +10,6 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('trainee'); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -176,4 +175,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;
