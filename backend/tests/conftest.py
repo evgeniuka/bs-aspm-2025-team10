@@ -1,113 +1,111 @@
 import os
-import sys
-from pathlib import Path
+from collections.abc import Generator
 
-from sqlalchemy.engine import make_url
-
-TEST_DATABASE_URL = os.getenv("DATABASE_URL_TEST")
-if not TEST_DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL_TEST environment variable must be set to a Postgres test database."
-    )
-
-try:
-    parsed_url = make_url(TEST_DATABASE_URL)
-except Exception as exc:
-    raise RuntimeError(
-        "DATABASE_URL_TEST must be a valid SQLAlchemy Postgres URL."
-    ) from exc
-
-if not parsed_url.drivername.startswith("postgresql"):
-    raise RuntimeError("Tests require Postgres. DATABASE_URL_TEST must start with 'postgresql'.")
-
-if parsed_url.database and "test" not in parsed_url.database:
-    raise RuntimeError("Refusing to run tests against non-test database.")
-
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
+os.environ["SECRET_KEY"] = "test-secret-key-with-at-least-thirty-two-bytes"
 
 import pytest
-from flask import jsonify, request
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
-from app import create_app
-from models import db
-from models.user import User
-from utils.jwt_utils import generate_token, role_required, token_required
+from app.auth import hash_password
+from app.database import Base, SessionLocal, engine, get_db
+from app.main import app
+from app.models import Client, Exercise, FitnessLevel, Program, ProgramExercise, User, UserRole
 
 
-@pytest.fixture(scope="session")
-def app():
-    flask_app, _socketio = create_app()
-    flask_app.config.update(
-        {
-            "TESTING": True,
-        }
-    )
+def override_get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-    @flask_app.route("/test/protected", methods=["GET"])
-    @token_required
-    def protected_test_route():
-        return jsonify(
-            {"ok": True, "user_id": request.user_id, "role": request.user_role}
-        ), 200
 
-    @flask_app.route("/test/admin", methods=["GET"])
-    @token_required
-    @role_required("trainer")
-    def admin_test_route():
-        return jsonify({"ok": True, "role": request.user_role}), 200
-
-    with flask_app.app_context():
-        db.create_all()
-
-    yield flask_app
-
-    with flask_app.app_context():
-        db.session.remove()
-        db.drop_all()
+app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest.fixture(autouse=True)
-def clean_db(app):
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
+def reset_db() -> Generator[None, None, None]:
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
-    with app.app_context():
-        db.session.remove()
+    Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(autouse=True)
-def app_context(app):
-    with app.app_context():
-        yield
+@pytest.fixture
+def db() -> Generator[Session, None, None]:
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
-@pytest.fixture()
-def client(app):
-    return app.test_client()
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
 
 
-@pytest.fixture()
-def db_session(app):
-    with app.app_context():
-        yield db.session
+@pytest.fixture
+def seeded_trainer(db: Session) -> User:
+    trainer = User(
+        email="trainer@example.com",
+        password_hash=hash_password("password123"),
+        full_name="Test Trainer",
+        role=UserRole.trainer,
+    )
+    db.add(trainer)
+    db.commit()
+    db.refresh(trainer)
+    return trainer
 
 
-@pytest.fixture()
-def trainer_token(app):
-    with app.app_context():
-        user = User(
-            email="trainer.token@example.com",
-            full_name="Trainer Token",
-            role="trainer",
-            is_active=True,
-        )
-        user.set_password("password123")
-        db.session.add(user)
-        db.session.commit()
-        token = generate_token(user.id, user.role)
-        return {"user_id": user.id, "token": token}
+@pytest.fixture
+def seeded_product(db: Session, seeded_trainer: User) -> dict:
+    exercises = [
+        Exercise(name="Squat", category="Strength", equipment="Barbell", difficulty="Intermediate", description="Squat"),
+        Exercise(name="Row", category="Strength", equipment="Cable", difficulty="Beginner", description="Row"),
+        Exercise(name="Plank", category="Core", equipment="Mat", difficulty="Beginner", description="Core hold"),
+    ]
+    db.add_all(exercises)
+    db.flush()
+    clients = [
+        Client(
+            trainer_id=seeded_trainer.id,
+            name="Client One",
+            age=30,
+            fitness_level=FitnessLevel.beginner,
+            goals="Get stronger",
+        ),
+        Client(
+            trainer_id=seeded_trainer.id,
+            name="Client Two",
+            age=32,
+            fitness_level=FitnessLevel.intermediate,
+            goals="Improve consistency",
+        ),
+    ]
+    db.add_all(clients)
+    db.flush()
+    programs = []
+    for client_item in clients:
+        program = Program(trainer_id=seeded_trainer.id, client_id=client_item.id, name=f"{client_item.name} Plan")
+        db.add(program)
+        db.flush()
+        for index, exercise in enumerate(exercises):
+            db.add(
+                ProgramExercise(
+                    program_id=program.id,
+                    exercise_id=exercise.id,
+                    order_index=index,
+                    sets=2,
+                    reps=8,
+                    weight_kg=20,
+                    rest_seconds=30,
+                )
+            )
+        programs.append(program)
+    db.commit()
+    return {"clients": clients, "programs": programs, "exercises": exercises}
