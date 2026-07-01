@@ -6,10 +6,10 @@ FitCoach Pro 2.0 is a production-grade portfolio rebuild of a small-group person
 
 - Demo trainer login with HttpOnly cookie auth.
 - Demo client login with a scoped client training hub.
-- Trainer dashboard for clients, programs, active sessions, and recent sessions.
+- Calm trainer home with one primary "Start a session" action, today's readiness at a glance, today's clients, and recent sessions.
 - Saved training groups for recurring strength, endurance, and core sessions with attendance, substitutions, reusable rosters, and exercise templates.
 - Client roster management with create, edit, archive, and profile links.
-- Session setup for 1-10 selected clients with per-client workout variants.
+- Guided three-step session wizard (choose clients, assign programs, review and start) for 1-10 selected clients with per-client workout variants.
 - Client daily check-in for energy, sleep, soreness, pain notes, and training goal.
 - Trainer readiness signals in the roster before the session starts.
 - Program builder with ordered exercises, sets, reps, weight, and rest.
@@ -50,9 +50,13 @@ flowchart LR
 
 ## Screenshots
 
-Trainer session setup with saved groups and a 10-client session limit:
+Calm trainer home — one primary action, today's readiness, and a scannable client list:
 
-![FitCoach trainer dashboard session setup](docs/screenshots/dashboard-session-setup.png)
+![FitCoach calm trainer home](docs/screenshots/calm-home.png)
+
+Guided session-setup wizard with saved-group quick-pick and a 10-client limit:
+
+![FitCoach guided session setup wizard](docs/screenshots/session-setup-wizard.png)
 
 Realtime coach cockpit for a full 10-client small-group session:
 

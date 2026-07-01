@@ -60,7 +60,7 @@ bandit -r app
 - Proposed dependency automation: `.codex/templates/dependabot.yml`.
 - Proposed supply-chain signal: `.codex/templates/scorecard.yml`.
 - Proposed CodeQL analysis: `.codex/templates/codeql.yml`.
-- Proposed secret scanning: `.codex/templates/secret-scan.yml`.
+- Proposed secret scanning: not yet templated (e.g. gitleaks or GitHub secret scanning).
 
 ## Manual QA
 

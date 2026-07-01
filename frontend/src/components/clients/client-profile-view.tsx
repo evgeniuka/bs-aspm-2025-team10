@@ -47,7 +47,7 @@ export function ClientProfileView({ clientId }: { clientId: number }) {
         <div className="flex min-w-0 items-center gap-4">
           <ClientAvatar name={client.name} size="lg" />
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted">Client profile</p>
+            <p className="text-xs font-semibold text-muted">Client profile</p>
             <h1 className="truncate text-3xl font-bold text-ink">{client.name}</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted">
               {client.fitness_level} - {client.goals}

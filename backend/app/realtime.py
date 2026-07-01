@@ -1,11 +1,17 @@
+import asyncio
 from collections import defaultdict
 
 from fastapi import WebSocket
+
+MAX_CONNECTIONS_PER_SESSION = 25
 
 
 class SessionRoomManager:
     def __init__(self) -> None:
         self._rooms: dict[int, set[WebSocket]] = defaultdict(set)
+
+    def is_full(self, session_id: int) -> bool:
+        return len(self._rooms.get(session_id, ())) >= MAX_CONNECTIONS_PER_SESSION
 
     async def connect(self, session_id: int, websocket: WebSocket) -> None:
         await websocket.accept()
@@ -20,14 +26,16 @@ class SessionRoomManager:
             self._rooms.pop(session_id, None)
 
     async def broadcast(self, session_id: int, payload: dict) -> None:
-        stale: list[WebSocket] = []
-        for websocket in list(self._rooms.get(session_id, set())):
-            try:
-                await websocket.send_json(payload)
-            except RuntimeError:
-                stale.append(websocket)
-        for websocket in stale:
-            self.disconnect(session_id, websocket)
+        sockets = list(self._rooms.get(session_id, set()))
+        if not sockets:
+            return
+        results = await asyncio.gather(
+            *(websocket.send_json(payload) for websocket in sockets),
+            return_exceptions=True,
+        )
+        for websocket, result in zip(sockets, results):
+            if isinstance(result, Exception):
+                self.disconnect(session_id, websocket)
 
 
 manager = SessionRoomManager()

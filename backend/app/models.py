@@ -204,6 +204,7 @@ class TrainingSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     trainer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus), default=SessionStatus.active, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -232,6 +233,7 @@ class SessionClient(Base):
     )
     completed_exercises: Mapped[list[int]] = mapped_column(MutableList.as_mutable(JSON), default=list, nullable=False)
     rest_time_remaining: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    rest_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     coach_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     next_focus: Mapped[str | None] = mapped_column(String(180), nullable=True)
 

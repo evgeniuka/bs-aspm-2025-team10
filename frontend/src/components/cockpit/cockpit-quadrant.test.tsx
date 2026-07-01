@@ -12,6 +12,7 @@ const participant: SessionParticipant = {
   status: "ready",
   completed_exercises: [],
   rest_time_remaining: 0,
+  rest_ends_at: null,
   coach_notes: null,
   next_focus: null,
   today_check_in: null,

@@ -5,7 +5,7 @@ export function MetricCard({ label, value, detail }: { label: string; value: str
     <Card className="overflow-hidden">
       <CardBody className="relative">
         <div className="absolute inset-x-0 top-0 h-1 bg-brand" />
-        <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
+        <p className="text-xs font-semibold text-muted">{label}</p>
         <div className="mt-3">
           <p className="text-3xl font-bold leading-none text-ink">{value}</p>
         </div>

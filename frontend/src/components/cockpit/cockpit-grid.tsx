@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, StopCircle, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type CompleteSetPayload } from "@/lib/api";
 import { ApiError, getErrorMessage } from "@/lib/http";
 import { routes } from "@/lib/routes";
@@ -21,6 +21,18 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
     queryFn: () => api.session(sessionId)
   });
   const session = liveSession ?? fetchedSession;
+  const lastRevisionRef = useRef(-1);
+  const applySession = useCallback(
+    (next: TrainingSession) => {
+      // Ignore stale/out-of-order payloads (WS echo vs HTTP response race): server revision
+      // only ever increases, so never let an older snapshot clobber a newer one.
+      if (next.revision < lastRevisionRef.current) return;
+      lastRevisionRef.current = next.revision;
+      setLiveSession(next);
+      queryClient.setQueryData(["session", sessionId], next);
+    },
+    [queryClient, sessionId]
+  );
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -34,8 +46,7 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data) as RealtimeEvent;
-          setLiveSession(payload.session);
-          queryClient.setQueryData(["session", sessionId], payload.session);
+          applySession(payload.session);
           setActionError(null);
         } catch {
           setActionError("Realtime update could not be read. Session state was refreshed.");
@@ -57,15 +68,14 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
       if (retryId) window.clearTimeout(retryId);
       socket?.close();
     };
-  }, [queryClient, sessionId]);
+  }, [applySession, queryClient, sessionId]);
 
   const complete = useMutation({
     mutationFn: ({ clientId, payload }: { clientId: number; payload: Required<CompleteSetPayload> }) =>
       api.completeSet(sessionId, clientId, payload),
     onSuccess: (data) => {
       setActionError(null);
-      setLiveSession(data);
-      queryClient.setQueryData(["session", sessionId], data);
+      applySession(data);
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
@@ -81,8 +91,7 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
     mutationFn: (clientId: number) => api.startNextSet(sessionId, clientId),
     onSuccess: (data) => {
       setActionError(null);
-      setLiveSession(data);
-      queryClient.setQueryData(["session", sessionId], data);
+      applySession(data);
     },
     onError: (error) => setActionError(getErrorMessage(error))
   });
@@ -90,16 +99,14 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
     mutationFn: (clientId: number) => api.undoLastSet(sessionId, clientId),
     onSuccess: (data) => {
       setActionError(null);
-      setLiveSession(data);
-      queryClient.setQueryData(["session", sessionId], data);
+      applySession(data);
     },
     onError: (error) => setActionError(getErrorMessage(error))
   });
   const end = useMutation({
     mutationFn: () => api.endSession(sessionId),
     onSuccess: (data) => {
-      setLiveSession(data);
-      queryClient.setQueryData(["session", sessionId], data);
+      applySession(data);
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setIsRedirecting(true);
       window.setTimeout(() => window.location.assign(routes.sessionSummary(sessionId)), 700);
@@ -115,10 +122,10 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
 
   return (
     <div className="min-h-screen">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/70 bg-white/90 px-6 py-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)] backdrop-blur">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-white px-6 py-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Live cockpit</p>
-          <h1 className="text-2xl font-bold text-ink">Session #{session.id}</h1>
+          <p className="field-label">Live cockpit</p>
+          <h1 className="text-xl font-semibold text-ink">Session #{session.id}</h1>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="status-pill">
@@ -128,10 +135,10 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
           <span className={connectionPillClassName(connectionState)} data-testid="connection-state">
             {connectionState}
           </span>
-          <span className="status-pill">{isEnding ? "saving" : session.status}</span>
+          <span className="status-pill capitalize">{isEnding ? "saving" : session.status}</span>
           {isCompleted ? (
             <a
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-panel"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-panel"
               href={routes.dashboard}
             >
               <ArrowLeft size={16} />
@@ -140,7 +147,7 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
           ) : (
             <>
               <a
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-panel"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-panel"
                 href={routes.dashboard}
               >
                 <ArrowLeft size={16} />
@@ -155,17 +162,17 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
         </div>
       </header>
       {isCompleted && (
-        <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4">
+        <div className="border-b border-line bg-success-soft px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="text-success" size={22} />
+              <CheckCircle2 className="text-success" size={20} />
               <div>
-                <p className="font-bold text-ink">Session completed</p>
+                <p className="font-medium text-ink">Session completed</p>
                 <p className="text-sm text-muted">Workout history is saved. Opening the session summary...</p>
               </div>
             </div>
             <a
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               href={routes.dashboard}
             >
               <ArrowLeft size={16} />
@@ -174,13 +181,13 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
           </div>
         </div>
       )}
-      {end.error && <p className="border-b border-red-200 bg-red-50 px-6 py-3 text-sm font-semibold text-danger">{getErrorMessage(end.error)}</p>}
+      {end.error && <p className="border-b border-line bg-danger-soft px-6 py-3 text-sm font-medium text-danger">{getErrorMessage(end.error)}</p>}
       {connectionState !== "live" && (
-        <p className="border-b border-blue-200 bg-blue-50 px-6 py-3 text-sm font-semibold text-brand">
+        <p className="border-b border-line bg-brand-soft px-6 py-3 text-sm font-medium text-brand">
           Reconnecting realtime channel. Controls still use the latest saved session state.
         </p>
       )}
-      {actionError && <p className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm font-semibold text-warning">{actionError}</p>}
+      {actionError && <p className="border-b border-line bg-warning-soft px-6 py-3 text-sm font-medium text-warning">{actionError}</p>}
       <section className="grid min-h-[calc(100vh-81px)] grid-cols-1 gap-3 p-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {session.clients.map((participant) => (
           <CockpitQuadrant
@@ -198,8 +205,8 @@ export function CockpitGrid({ sessionId }: { sessionId: number }) {
 }
 
 function connectionPillClassName(state: "connecting" | "live" | "reconnecting") {
-  const base = "status-pill";
-  if (state === "live") return `${base} border-emerald-200 bg-emerald-50 text-success`;
-  if (state === "reconnecting") return `${base} border-amber-200 bg-amber-50 text-warning`;
+  const base = "status-pill capitalize";
+  if (state === "live") return `${base} border-success-soft bg-success-soft text-success`;
+  if (state === "reconnecting") return `${base} border-warning-soft bg-warning-soft text-warning`;
   return base;
 }

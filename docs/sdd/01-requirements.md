@@ -4,9 +4,9 @@
 
 - Auth: trainer can log in with demo credentials and receives a JWT in an HttpOnly cookie.
 - Auth: client can log in with demo credentials and receives only client-scoped data.
-- Dashboard: trainer sees clients, programs, active session state, recent sessions, analytics, and session setup.
+- Dashboard: a calm trainer home surfaces one primary start-a-session action (or resume), today's readiness at a glance, today's clients, and recent sessions, with quick totals; detailed analytics and session setup live on their own screens.
 - Client management: trainer can create, edit, and archive active clients while preserving completed session history.
-- Session setup: trainer selects one to ten clients from a roster larger than cockpit capacity.
+- Session setup: a guided three-step wizard (choose clients, assign programs, review and start) at `/sessions/new`, where the trainer selects one to ten clients from a roster larger than cockpit capacity.
 - Client check-in: trainee can submit today's energy, sleep, soreness, pain/limitation notes, and training goal.
 - Trainer readiness: dashboard surfaces today's client check-ins, missing submissions, and attention flags before session setup.
 - Workout variants: demo data provides realistic program variants, such as strength, conditioning, and core/stability.
@@ -69,7 +69,7 @@
 - A fresh local setup can be completed from README commands without manually creating env files.
 - Mobile web navigation works for dashboard, clients, groups, active session, analytics, client hub, and profiles without horizontal overflow.
 - Program screen opens in a simple read-first mode and hides editing controls until `Edit plan`.
-- Dashboard session setup feels like attendance and lineup selection, not a technical equalizer.
+- The session-setup wizard feels like attendance and lineup selection, not a technical equalizer.
 - Backend pytest passes.
 - Frontend lint, typecheck, unit tests, build, and e2e pass.
 - README and SDD describe any known production limitations honestly.

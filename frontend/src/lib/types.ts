@@ -107,6 +107,7 @@ export type SessionParticipant = {
   status: ParticipantStatus;
   completed_exercises: number[];
   rest_time_remaining: number;
+  rest_ends_at: string | null;
   coach_notes: string | null;
   next_focus: string | null;
   today_check_in: ClientCheckIn | null;
@@ -125,6 +126,7 @@ export type SessionParticipant = {
 export type TrainingSession = {
   id: number;
   status: SessionStatus;
+  revision: number;
   started_at: string;
   ended_at: string | null;
   duration_minutes: number;

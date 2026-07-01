@@ -153,7 +153,7 @@ function ProgramEditorForm({
               <span className="status-pill">{rows.length} exercises</span>
               {isEditing ? <span className={`status-pill ${saveState.tone}`}>{saveState.label}</span> : <span className="status-pill">{totalSets} sets</span>}
             </div>
-            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-muted">{isEditing ? "Edit plan" : "Today's plan"}</p>
+            <p className="mt-3 text-xs font-semibold text-muted">{isEditing ? "Edit plan" : "Today's plan"}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink">{name || "Untitled program"}</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted">
               {isEditing ? "Adjust the plan, save changes, then return to a simple session-ready view." : "Scan the plan and start when the client is ready."}
@@ -277,7 +277,7 @@ function ProgramEditorForm({
                 )}
                 {update.error && <p className="rounded-md bg-red-50 p-3 text-sm text-danger">{getErrorMessage(update.error)}</p>}
                 {startSession.error && <p className="rounded-md bg-red-50 p-3 text-sm text-danger">{getErrorMessage(startSession.error)}</p>}
-                {!isDirty && update.isSuccess && <p className="rounded-md bg-emerald-50 p-3 text-sm font-semibold text-success">Program saved.</p>}
+                {!isDirty && update.isSuccess && <p role="status" className="rounded-md bg-emerald-50 p-3 text-sm font-semibold text-success">Program saved.</p>}
               </CardBody>
             </Card>
           </aside>
@@ -773,7 +773,7 @@ function NumberCell({ label, min, value, onChange }: { label: string; min: numbe
       min={min}
       type="number"
       value={value}
-      onChange={(event) => onChange(Number(event.target.value))}
+      onChange={(event) => onChange(Math.max(min, Number(event.target.value) || 0))}
     />
   );
 }

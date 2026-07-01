@@ -18,7 +18,7 @@ Treat `docs/sdd/` as the living product contract and `docs/architecture/adr/` as
 
 ## Agent Roles
 
-Use project-scoped Codex agents from `.codex/agents/` for bounded work:
+These bounded review roles describe how to scope work. The original Codex agent definitions are not included in this code-only snapshot; treat the roles below as a checklist, or recreate them as subagents:
 
 - `project_mapper`: read-only repo map, commands, docs, ownership, risk hotspots.
 - `architecture_planner`: read-only boundaries, flows, ADR candidates, integration risks.

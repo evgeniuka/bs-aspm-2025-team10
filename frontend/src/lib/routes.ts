@@ -5,6 +5,8 @@ export const routes = {
   groups: "/groups",
   analytics: "/analytics",
   clientPortal: "/client",
+  newSession: "/sessions/new",
+  newProgram: "/programs/new",
   program: (programId: number) => `/programs/${programId}`,
   session: (sessionId: number) => `/sessions/${sessionId}`,
   sessionSummary: (sessionId: number) => `/sessions/${sessionId}/summary`,

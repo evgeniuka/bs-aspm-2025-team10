@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.schemas import MAX_SESSION_CLIENTS, SessionCreated, TrainingGroupCreate, TrainingGroupRead, TrainingGroupSessionCreate, TrainingGroupUpdate
 from app.serializers import group_to_read, session_to_read
+from app.queries import active_session_query as _active_session_query, session_query as _session_query
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -35,38 +36,11 @@ def _group_load_options():
     )
 
 
-def _session_load_options():
-    return (
-        selectinload(TrainingSession.clients)
-        .selectinload(SessionClient.program)
-        .selectinload(Program.exercises)
-        .selectinload(ProgramExercise.exercise),
-        selectinload(TrainingSession.clients).selectinload(SessionClient.client),
-    )
-
-
 def _group_query(group_id: int, trainer_id: int):
     return (
         select(TrainingGroup)
         .options(*_group_load_options())
         .where(TrainingGroup.id == group_id, TrainingGroup.trainer_id == trainer_id, TrainingGroup.active.is_(True))
-    )
-
-
-def _active_session_query(trainer_id: int):
-    return (
-        select(TrainingSession)
-        .options(*_session_load_options())
-        .where(TrainingSession.trainer_id == trainer_id, TrainingSession.status == SessionStatus.active)
-        .order_by(TrainingSession.started_at.desc())
-    )
-
-
-def _session_query(session_id: int, trainer_id: int):
-    return (
-        select(TrainingSession)
-        .options(*_session_load_options())
-        .where(TrainingSession.id == session_id, TrainingSession.trainer_id == trainer_id)
     )
 
 

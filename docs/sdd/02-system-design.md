@@ -68,7 +68,7 @@ The domain model is intentionally relational: trainers own clients, clients have
 
 - Schema changes require Alembic migrations under `backend/alembic/versions/`.
 - Demo data changes should remain idempotent through `python -m app.seed`.
-- Frontend UI changes should preserve route compatibility for `/dashboard`, `/programs/{id}`, `/sessions/{id}`, `/sessions/{id}/summary`, and `/clients/{id}`.
+- Frontend UI changes should preserve route compatibility for `/dashboard`, `/sessions/new`, `/programs/new`, `/programs/{id}`, `/sessions/{id}`, `/sessions/{id}/summary`, and `/clients/{id}`.
 - For risky workflow changes, keep old route-level behavior working until e2e covers the new path.
 - Production rollback should include app rollback plus database migration rollback notes when schema changes are involved.
 - Fast local setup defaults to SQLite for reviewer convenience; production deployment remains Postgres-only through `DATABASE_URL`.

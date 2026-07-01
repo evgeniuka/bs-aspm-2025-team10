@@ -197,8 +197,8 @@ function ClientCheckInCard({ checkIn }: { checkIn: ClientCheckIn | null }) {
         </label>
         {save.error && <p className="rounded-md bg-red-50 p-2 text-sm text-danger">{getErrorMessage(save.error)}</p>}
         {save.isSuccess && (
-          <p className="flex items-center gap-2 rounded-md bg-emerald-50 p-2 text-sm font-semibold text-success">
-            <CheckCircle2 size={16} />
+          <p role="status" className="flex items-center gap-2 rounded-md bg-emerald-50 p-2 text-sm font-semibold text-success">
+            <CheckCircle2 size={16} aria-hidden="true" />
             Check-in saved
           </p>
         )}

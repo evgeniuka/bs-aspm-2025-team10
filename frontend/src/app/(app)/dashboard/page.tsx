@@ -1,200 +1,196 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, AlertCircle, CalendarDays, CheckCircle2, Dumbbell, RotateCw, Users } from "lucide-react";
+import { ArrowRight, BarChart3, CalendarDays, ClipboardList, Play, RotateCw, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import { getErrorMessage } from "@/lib/http";
 import { routes } from "@/lib/routes";
-import { StartSessionPanel } from "@/components/dashboard/start-session-panel";
-import { TrainingGroupsPanel } from "@/components/dashboard/training-groups-panel";
-import { ProgramBuilder } from "@/components/programs/program-builder";
 import { Card, CardBody } from "@/components/ui/card";
+import { ClientAvatar } from "@/components/ui/client-avatar";
 
-type DashboardData = NonNullable<Awaited<ReturnType<typeof api.dashboard>>>;
+const READINESS = {
+  ready: { label: "Ready", dot: "bg-success", pill: "bg-success-soft text-success" },
+  caution: { label: "Caution", dot: "bg-warning", pill: "bg-warning-soft text-warning" },
+  attention: { label: "Attention", dot: "bg-danger", pill: "bg-danger-soft text-danger" },
+  missing: { label: "No check-in", dot: "bg-line", pill: "bg-panel text-muted" }
+} as const;
 
 export default function DashboardPage() {
-  const [groupPresetId, setGroupPresetId] = useState<number | null>(null);
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ["dashboard"],
     queryFn: api.dashboard,
     retry: false
   });
-  const prepareGroup = useCallback((groupId: number) => setGroupPresetId(groupId), []);
-  const clearPreparedGroup = useCallback(() => setGroupPresetId(null), []);
 
   if (isLoading) {
-    return <DashboardLoading />;
+    return <div className="page-wrap text-sm text-muted">Loading your workspace...</div>;
   }
-
   if (error || !data) {
-    return <DashboardError error={error} isRetrying={isRefetching} onRetry={() => refetch()} />;
-  }
-
-  return (
-    <div className="h-screen overflow-hidden p-3" id="dashboard" tabIndex={-1}>
-      <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[310px_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 flex-col gap-3 overflow-hidden xl:flex" id="program-builder">
-          <SessionTunnelCard activeSessionId={data.active_session?.id ?? null} />
-          <TrainingGroupsPanel onPrepareGroup={prepareGroup} variant="rail" />
-          <ProgramBuilder variant="rail" />
-        </aside>
-
-        <main className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
-          <DashboardHeader data={data} />
-          <section className="min-h-0" id="live-session">
-            <StartSessionPanel
-              activeSession={data.active_session}
-              groupPresetId={groupPresetId}
-              readiness={data.today_readiness}
-              onGroupPresetHandled={clearPreparedGroup}
-            />
-          </section>
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function DashboardHeader({ data }: { data: DashboardData }) {
-  return (
-    <header className="visual-card px-4 py-3" id="analytics" tabIndex={-1}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="status-pill">
-              <CalendarDays size={13} />
-              Today
-            </span>
-            {data.active_session ? (
-              <span className="status-pill border-emerald-200 bg-emerald-50 text-success">Live session active</span>
-            ) : (
-              <span className="status-pill">No active session</span>
-            )}
-          </div>
-          <h1 className="mt-1 text-xl font-bold tracking-tight text-ink">Trainer dashboard</h1>
-          <p className="mt-0.5 hidden max-w-2xl text-sm leading-5 text-muted min-[900px]:block">Everything needed to start coaching stays in this workspace.</p>
-        </div>
-        <div className="hidden grid-cols-3 gap-2 min-[900px]:grid">
-          <MiniKpi label="Clients" value={data.total_clients} />
-          <MiniKpi label="Programs" value={data.total_programs} />
-          <MiniKpi label="Done" value={data.completed_sessions} />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function SessionTunnelCard({ activeSessionId }: { activeSessionId: number | null }) {
-  return (
-    <Card className="shrink-0 overflow-hidden p-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-bold text-ink">Session tunnel</h2>
-          <p className="text-xs text-muted">Roster to workout to cockpit</p>
-        </div>
-        {activeSessionId ? (
-          <a
-            className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
-            href={routes.session(activeSessionId)}
-          >
-            <Activity size={13} />
-            Resume
-          </a>
-        ) : (
-          <a
-            className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-md border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-panel"
-            href="#live-session"
-          >
-            Setup
-          </a>
-        )}
-      </div>
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
-        <TunnelStep icon={<Users size={13} />} label="Pick" state="Roster" />
-        <TunnelStep icon={<Dumbbell size={13} />} label="Plan" state="Workout" />
-        <TunnelStep icon={<CheckCircle2 size={13} />} label="Coach" state="1-10" />
-      </div>
-    </Card>
-  );
-}
-
-function TunnelStep({ icon, label, state }: { icon: ReactNode; label: string; state: string }) {
-  return (
-    <div className="rounded-md border border-line bg-white/80 px-2 py-1.5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-      <span className="flex items-center gap-1.5 text-[11px] font-bold text-ink">
-        <span className="flex h-5 w-5 items-center justify-center rounded bg-panel text-brand">{icon}</span>
-        <span className="truncate">{label}</span>
-      </span>
-      <span className="mt-0.5 block truncate text-[10px] font-semibold text-muted">{state}</span>
-    </div>
-  );
-}
-
-function MiniKpi({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="min-w-[74px] rounded-md border border-line bg-white/80 px-2 py-1.5 text-right">
-      <p className="text-base font-bold leading-none text-ink">{value}</p>
-      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
-    </div>
-  );
-}
-
-function DashboardLoading() {
-  const [isSlow, setIsSlow] = useState(false);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => setIsSlow(true), 1500);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  return (
-    <div className="h-screen overflow-hidden p-3">
-      <Card>
-        <CardBody className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-ink">{isSlow ? "Still connecting to the demo workspace" : "Loading dashboard"}</p>
-            <p className="mt-1 text-sm text-muted">
-              {isSlow ? "If this stays here, the local API or demo cookie needs a refresh." : "Preparing trainer workspace..."}
-            </p>
-          </div>
-          {isSlow && (
-            <a className="inline-flex min-h-10 items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white" href={routes.login}>
-              Go to login
-            </a>
-          )}
-        </CardBody>
-      </Card>
-    </div>
-  );
-}
-
-function DashboardError({ error, isRetrying, onRetry }: { error: unknown; isRetrying: boolean; onRetry: () => void }) {
-  return (
-    <div className="flex h-screen items-center justify-center overflow-hidden p-6">
-      <Card className="max-w-md">
-        <CardBody className="space-y-4">
-          <AlertCircle className="text-danger" />
-          <div>
-            <p className="font-bold text-ink">Dashboard could not load</p>
-            <p className="mt-1 text-sm text-muted">{getErrorMessage(error)}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    return (
+      <div className="page-wrap">
+        <Card className="max-w-md">
+          <CardBody className="space-y-4">
+            <p className="font-medium text-ink">Your dashboard could not load</p>
+            <p className="text-sm text-muted">{getErrorMessage(error)}</p>
             <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-panel"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-panel"
               type="button"
-              onClick={onRetry}
+              onClick={() => refetch()}
             >
               <RotateCw size={16} />
-              {isRetrying ? "Retrying..." : "Retry"}
+              {isRefetching ? "Retrying..." : "Try again"}
             </button>
-            <a className="inline-flex min-h-10 items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700" href={routes.login}>
-              Go to login
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  const active = data.active_session;
+  const readiness = data.today_readiness;
+  const readyCount = readiness.filter((item) => item.readiness_status === "ready").length;
+
+  return (
+    <div className="page-wrap max-w-[1040px]">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-ink">Trainer dashboard</h1>
+          <p className="mt-1 text-sm text-muted">{active ? "A live session is running." : "Pick up where today's coaching begins."}</p>
+        </div>
+        <span className={`status-pill ${active ? "border-success-soft bg-success-soft text-success" : ""}`}>
+          {active ? "Live session active" : "No active session"}
+        </span>
+      </header>
+
+      <section className="visual-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <div>
+            <p className="field-label">Today&apos;s session</p>
+            {active ? (
+              <p className="mt-1 text-[26px] font-semibold leading-tight text-ink">Session #{active.id} in progress</p>
+            ) : (
+              <p className="mt-1 text-[26px] font-semibold leading-tight text-ink">
+                {readyCount} of {readiness.length} clients ready
+              </p>
+            )}
+            <div className="mt-3 flex gap-1.5">
+              {readiness.slice(0, 12).map((item) => (
+                <span aria-hidden="true" className={`h-3.5 w-3.5 rounded-full ${READINESS[item.readiness_status].dot}`} key={item.client.id} />
+              ))}
+            </div>
+          </div>
+          <div className="flex min-w-[180px] flex-col gap-2">
+            {active ? (
+              <a
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white transition hover:bg-blue-700"
+                href={routes.session(active.id)}
+              >
+                <Play size={16} />
+                Resume cockpit
+              </a>
+            ) : (
+              <a
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-white transition hover:bg-blue-700"
+                href={routes.newSession}
+              >
+                <Play size={16} />
+                Start a session
+              </a>
+            )}
+            <a
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium text-ink transition hover:bg-panel"
+              href={routes.newProgram}
+            >
+              Build a program
             </a>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <Card>
+          <CardBody>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-ink">Today&apos;s clients</h2>
+              <a className="text-sm font-medium text-brand" href={routes.clients}>
+                View all
+              </a>
+            </div>
+            <div>
+              {readiness.length === 0 ? <p className="py-4 text-sm text-muted">No active clients yet.</p> : null}
+              {readiness.slice(0, 6).map((item) => (
+                <a
+                  className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0"
+                  href={routes.client(item.client.id)}
+                  key={item.client.id}
+                >
+                  <ClientAvatar name={item.client.name} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">{item.client.name}</span>
+                    <span className="block truncate text-xs text-muted">{subtext(item)}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${READINESS[item.readiness_status].pill}`}>
+                    {READINESS[item.readiness_status].label}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardBody>
+            <h2 className="mb-2 text-base font-semibold text-ink">Recent sessions</h2>
+            <div>
+              {data.recent_sessions.length === 0 ? <p className="py-4 text-sm text-muted">No sessions logged yet.</p> : null}
+              {data.recent_sessions.slice(0, 5).map((session) => (
+                <a
+                  className="flex items-center gap-3 border-b border-line py-2.5 last:border-b-0"
+                  href={routes.sessionSummary(session.id)}
+                  key={session.id}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-panel text-muted">
+                    <CalendarDays size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">Session #{session.id}</span>
+                    <span className="block text-xs text-muted">
+                      {formatDate(session.ended_at ?? session.started_at)} · {session.clients.length} clients
+                    </span>
+                  </span>
+                  <ArrowRight className="shrink-0 text-faint" size={16} />
+                </a>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      </section>
+
+      <section className="grid grid-cols-3 gap-4">
+        <Metric icon={<Users size={16} />} label="Clients" value={data.total_clients} />
+        <Metric icon={<ClipboardList size={16} />} label="Programs" value={data.total_programs} />
+        <Metric icon={<BarChart3 size={16} />} label="Sessions done" value={data.completed_sessions} />
+      </section>
     </div>
   );
+}
+
+function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-panel px-4 py-3.5">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted">{label}</p>
+        <span className="text-faint">{icon}</span>
+      </div>
+      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
+    </div>
+  );
+}
+
+function subtext(item: { client: { fitness_level: string }; check_in: unknown; risk_flags: string[] }) {
+  if (!item.check_in) return `${item.client.fitness_level} · no check-in yet`;
+  if (item.risk_flags.length > 0) return `${item.client.fitness_level} · ${item.risk_flags.join(", ")}`;
+  return item.client.fitness_level;
 }

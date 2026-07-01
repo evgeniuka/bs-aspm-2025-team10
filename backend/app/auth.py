@@ -43,7 +43,11 @@ def decode_access_token(token: str) -> dict:
 
 def get_user_from_token(db: Session, token: str) -> User:
     payload = decode_access_token(token)
-    user = db.get(User, int(payload["sub"]))
+    try:
+        user_id = int(payload["sub"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session") from exc
+    user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is inactive")
     return user

@@ -19,27 +19,25 @@ async function replaceField(field: Locator, value: string) {
   await expect(field).toHaveValue(value);
 }
 
+async function openWizard(page: Page) {
+  await page.getByRole("link", { name: "Start a session" }).click();
+  await expect(page).toHaveURL(/\/sessions\/new$/);
+  await expect(page.getByText("Choose clients")).toBeVisible();
+}
+
 test("demo login opens the realtime cockpit", async ({ page }) => {
   await loginAs(page);
   await expect(page.getByRole("heading", { name: "Trainer dashboard" })).toBeVisible();
   await endActiveSessionIfPresent(page);
 
-  await expect(page.getByRole("button", { name: "Choose clients first" })).toBeDisabled();
-  await page.getByLabel("Saved group preset").selectOption({ label: "Core Reset - 3" });
-  await expect(page.getByText("3/10 selected")).toBeVisible();
-  await expect(page.getByText("Group session")).toBeVisible();
-  await expect(page.locator("#live-session").getByText("Dead Bug")).toBeVisible();
-  await page.getByRole("button", { name: /Noam Cohen Present/ }).click();
-  await expect(page.getByText("2/3 present")).toBeVisible();
-  await page.getByRole("button", { name: "Add Maya Levi to session" }).click();
-  await expect(page.getByText("Substitute: Maya Levi")).toBeVisible();
-  await page.getByRole("button", { name: "Clear" }).click();
-  await page.getByRole("button", { name: "Add Maya Levi to session" }).click();
-  await expect(page.getByText("1/10 selected")).toBeVisible();
-  await page.getByLabel("Workout variant for Maya Levi").selectOption({ label: "Core Stability" });
-  await expect(page.getByLabel("Workout variant for Maya Levi").locator("option:checked")).toHaveText("Core Stability");
+  await openWizard(page);
+  await page.getByRole("button", { name: "Select Maya Levi" }).click();
+  await expect(page.getByText("1 selected")).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel("Workout for Maya Levi").selectOption({ label: "Core Stability" });
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   const startSoloSession = page.waitForResponse((response) => response.url().includes("/api/v1/sessions") && response.request().method() === "POST" && response.ok());
-  await page.getByRole("button", { name: /Start solo training/ }).click();
+  await page.getByRole("button", { name: "Start session" }).click();
   await startSoloSession;
 
   await expect(page).toHaveURL(/\/sessions\/\d+/, { timeout: 10000 });
@@ -81,22 +79,16 @@ test("trainer starts a saved training group", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Trainer dashboard" })).toBeVisible();
   await endActiveSessionIfPresent(page);
 
-  await expect(page.getByRole("heading", { name: "Saved groups" })).toBeVisible();
+  await openWizard(page);
   await page.getByRole("button", { name: /Strength Crew/ }).click();
-  await expect(page.getByText("Selected group")).toBeVisible();
-  await expect(page.locator("#groups").getByText("Maya Levi")).toBeVisible();
-  await expect(page.locator("#groups").getByText("Daniel Stein")).toBeVisible();
-  await expect(page.locator("#groups").getByText("Amir Haddad")).toBeVisible();
-
-  await page.getByRole("button", { name: "Prepare Strength Crew" }).click();
-  await expect(page.getByText("3/10 selected")).toBeVisible();
-  await expect(page.getByText("3/3 present")).toBeVisible();
-  await expect(page.getByText("Group session")).toBeVisible();
+  await expect(page.getByText("3 selected")).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
 
   const startGroupSession = page.waitForResponse(
     (response) => response.url().includes("/api/v1/groups/") && response.request().method() === "POST" && response.ok()
   );
-  await page.getByRole("button", { name: /Start 3-client training/ }).click();
+  await page.getByRole("button", { name: "Start session" }).click();
   await startGroupSession;
   await expect(page).toHaveURL(/\/sessions\/\d+/, { timeout: 10000 });
   await expect(page.getByText("Live cockpit")).toBeVisible();
@@ -115,14 +107,16 @@ test("trainer can prepare a 10-person cockpit from a saved group", async ({ page
   await expect(page.getByRole("heading", { name: "Trainer dashboard" })).toBeVisible();
   await endActiveSessionIfPresent(page);
 
-  await page.getByLabel("Saved group preset").selectOption({ label: "Engine Builders - 10" });
-  await expect(page.getByText("10/10 selected")).toBeVisible();
-  await expect(page.getByText("10/10 present")).toBeVisible();
+  await openWizard(page);
+  await page.getByRole("button", { name: /Engine Builders/ }).click();
+  await expect(page.getByText("10 selected")).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
 
   const startLargeGroup = page.waitForResponse(
     (response) => response.url().includes("/api/v1/groups/") && response.request().method() === "POST" && response.ok()
   );
-  await page.getByRole("button", { name: /Start 10-client training/ }).click();
+  await page.getByRole("button", { name: "Start session" }).click();
   await startLargeGroup;
 
   await expect(page).toHaveURL(/\/sessions\/\d+/, { timeout: 10000 });
@@ -139,7 +133,7 @@ test("trainer manages the active client roster", async ({ page }) => {
   await loginAs(page);
   await expect(page.getByRole("heading", { name: "Trainer dashboard" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("link", { name: "Clients", exact: true }).click();
   await expect(page).toHaveURL(/\/clients$/);
   await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
   await page.getByRole("button", { name: "New client" }).click();
@@ -184,6 +178,5 @@ test("client demo opens the client training hub", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
   await loginAs(page);
   await expect(page.getByRole("heading", { name: "Trainer dashboard" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add Maya Levi to session" })).toBeVisible();
-  await expect(page.getByText("Intermediate - low energy, pain noted")).toBeVisible();
+  await expect(page.getByText("low energy, pain noted")).toBeVisible();
 });

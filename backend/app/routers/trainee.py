@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import Client, ClientCheckIn, Program, ProgramExercise, SessionClient, TrainingSession, User, UserRole, utc_today
 from app.schemas import ClientCheckInRead, ClientCheckInUpsert, ClientDetailRead, ProgramRead, SessionSummaryRead
 from app.serializers import check_in_to_read, client_analytics_to_read, client_session_summary_to_read, program_to_read, session_summary_to_read, today_check_ins_by_client_id
+from app.queries import session_load_options as _session_load_options
 
 router = APIRouter(prefix="/trainee", tags=["trainee"])
 
@@ -27,16 +28,6 @@ def _current_client(db: Session, current_user: User) -> Client:
 
 def _program_load_options():
     return selectinload(Program.exercises).selectinload(ProgramExercise.exercise)
-
-
-def _session_load_options():
-    return (
-        selectinload(TrainingSession.clients)
-        .selectinload(SessionClient.program)
-        .selectinload(Program.exercises)
-        .selectinload(ProgramExercise.exercise),
-        selectinload(TrainingSession.clients).selectinload(SessionClient.client),
-    )
 
 
 def _clean_optional_text(value: str | None) -> str | None:

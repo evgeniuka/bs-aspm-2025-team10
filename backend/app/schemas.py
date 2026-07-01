@@ -211,6 +211,7 @@ class SessionClientRead(BaseModel):
     status: SessionClientStatus
     completed_exercises: list[int]
     rest_time_remaining: int
+    rest_ends_at: datetime | None = None
     coach_notes: str | None = None
     next_focus: str | None = None
     today_check_in: ClientCheckInRead | None = None
@@ -220,6 +221,7 @@ class SessionClientRead(BaseModel):
 class TrainingSessionRead(BaseModel):
     id: int
     status: SessionStatus
+    revision: int
     started_at: datetime
     ended_at: datetime | None
     duration_minutes: int

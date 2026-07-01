@@ -2,13 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.auth import require_role
 from app.database import get_db
-from app.models import Client, Program, ProgramExercise, SessionClient, SessionStatus, TrainingSession, User, UserRole
+from app.models import Client, Program, SessionStatus, TrainingSession, User, UserRole
 from app.schemas import DashboardOverview
 from app.serializers import client_readiness_to_read, session_to_read, today_check_ins_by_client_id
+from app.queries import active_session_query, session_load_options
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -25,28 +26,11 @@ def get_dashboard(
             .order_by(Client.name)
         )
     )
-    active_session = db.scalar(
-        select(TrainingSession)
-        .options(
-            selectinload(TrainingSession.clients)
-            .selectinload(SessionClient.program)
-            .selectinload(Program.exercises)
-            .selectinload(ProgramExercise.exercise),
-            selectinload(TrainingSession.clients).selectinload(SessionClient.client),
-        )
-        .where(TrainingSession.trainer_id == current_user.id, TrainingSession.status == SessionStatus.active)
-        .order_by(TrainingSession.started_at.desc())
-    )
+    active_session = db.scalar(active_session_query(current_user.id))
     recent_sessions = list(
         db.scalars(
             select(TrainingSession)
-            .options(
-                selectinload(TrainingSession.clients)
-                .selectinload(SessionClient.program)
-                .selectinload(Program.exercises)
-                .selectinload(ProgramExercise.exercise),
-                selectinload(TrainingSession.clients).selectinload(SessionClient.client),
-            )
+            .options(*session_load_options())
             .where(TrainingSession.trainer_id == current_user.id)
             .order_by(TrainingSession.started_at.desc())
             .limit(5)

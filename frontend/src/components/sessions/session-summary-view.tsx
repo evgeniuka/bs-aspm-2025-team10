@@ -1,39 +1,28 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BarChart3, Clock, Dumbbell } from "lucide-react";
+import { ArrowLeft, BarChart3, Clock, Dumbbell, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatDate, formatDuration } from "@/lib/format";
+import { getErrorMessage } from "@/lib/http";
 import { routes } from "@/lib/routes";
 import { Card, CardBody } from "@/components/ui/card";
-import { SessionSummaryCard } from "@/components/sessions/session-summary-card";
+import { SessionSummaryCard, type SessionSummaryNotes } from "@/components/sessions/session-summary-card";
 
 export function SessionSummaryView({ sessionId }: { sessionId: number }) {
   const queryClient = useQueryClient();
-  const [savingClientId, setSavingClientId] = useState<number | null>(null);
-  const { data, isLoading, error } = useQuery({
+  const { data, error, isLoading } = useQuery({
     queryKey: ["session-summary", sessionId],
-    queryFn: () => api.sessionSummary(sessionId)
+    queryFn: () => api.sessionSummary(sessionId),
+    retry: false
   });
-
-  const updateSummary = useMutation({
-    mutationFn: ({
-      clientId,
-      payload
-    }: {
-      clientId: number;
-      payload: { coach_notes: string | null; next_focus: string | null };
-    }) => api.updateSessionClientSummary(sessionId, clientId, payload),
-    onMutate: ({ clientId }) => setSavingClientId(clientId),
+  const save = useMutation({
+    mutationFn: ({ clientId, payload }: { clientId: number; payload: SessionSummaryNotes }) =>
+      api.updateSessionClientSummary(sessionId, clientId, payload),
     onSuccess: (summary) => {
       queryClient.setQueryData(["session-summary", sessionId], summary);
-      summary.clients.forEach((client) => {
-        void queryClient.invalidateQueries({ queryKey: ["client-detail", client.client_id] });
-      });
-    },
-    onSettled: () => setSavingClientId(null)
+    }
   });
 
   if (isLoading) {
@@ -45,11 +34,9 @@ export function SessionSummaryView({ sessionId }: { sessionId: number }) {
       <div className="flex min-h-screen items-center justify-center p-6">
         <Card className="max-w-md">
           <CardBody className="space-y-4">
-            <p className="text-sm text-muted">Could not load this session summary.</p>
-            <a
-              className="inline-flex min-h-10 items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-              href={routes.dashboard}
-            >
+            <p className="font-bold text-ink">Session summary could not load</p>
+            <p className="text-sm text-muted">{getErrorMessage(error)}</p>
+            <a className="inline-flex min-h-10 items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white" href={routes.dashboard}>
               Back to dashboard
             </a>
           </CardBody>
@@ -62,10 +49,10 @@ export function SessionSummaryView({ sessionId }: { sessionId: number }) {
     <div className="page-wrap">
       <header className="page-titlebar flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Session summary</p>
+          <p className="field-label">Session summary</p>
           <h1 className="text-3xl font-bold text-ink">Session #{data.session_id}</h1>
           <p className="mt-1 text-sm text-muted">
-            {formatDate(data.ended_at ?? data.started_at)} - volume is calculated from actual logged reps and weight
+            {formatDate(data.ended_at ?? data.started_at)} - {data.status}
           </p>
         </div>
         <a
@@ -78,19 +65,22 @@ export function SessionSummaryView({ sessionId }: { sessionId: number }) {
       </header>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <SummaryMetric icon={<Dumbbell size={18} />} label="Clients" value={String(data.total_clients)} />
+        <SummaryMetric icon={<Users size={18} />} label="Clients" value={String(data.total_clients)} />
         <SummaryMetric icon={<BarChart3 size={18} />} label="Sets" value={`${data.total_sets_completed}/${data.total_planned_sets}`} />
-        <SummaryMetric icon={<BarChart3 size={18} />} label="Actual volume" value={`${data.total_volume_kg}kg`} />
+        <SummaryMetric icon={<Dumbbell size={18} />} label="Volume" value={`${data.total_volume_kg}kg`} />
         <SummaryMetric icon={<Clock size={18} />} label="Duration" value={formatDuration(data.duration_minutes)} />
       </section>
 
-      <section className="space-y-4">
+      {save.error && <p className="rounded-md bg-red-50 p-3 text-sm font-semibold text-danger">{getErrorMessage(save.error)}</p>}
+
+      <section className="grid gap-4 lg:grid-cols-2">
         {data.clients.map((client) => (
           <SessionSummaryCard
             client={client}
-            isSaving={savingClientId === client.client_id}
+            clientHref={routes.client(client.client_id)}
+            isSaving={save.isPending && save.variables?.clientId === client.client_id}
             key={client.client_id}
-            onSave={(clientId, payload) => updateSummary.mutate({ clientId, payload })}
+            onSave={(payload) => save.mutate({ clientId: client.client_id, payload })}
           />
         ))}
       </section>

@@ -237,6 +237,7 @@ def session_client_to_read(db: Session, item: SessionClient) -> SessionClientRea
         status=item.status,
         completed_exercises=item.completed_exercises or [],
         rest_time_remaining=item.rest_time_remaining,
+        rest_ends_at=item.rest_ends_at,
         coach_notes=item.coach_notes,
         next_focus=item.next_focus,
         today_check_in=check_in_to_read(check_in) if check_in else None,
@@ -248,6 +249,7 @@ def session_to_read(db: Session, session: TrainingSession) -> TrainingSessionRea
     return TrainingSessionRead(
         id=session.id,
         status=session.status,
+        revision=session.revision,
         started_at=session.started_at,
         ended_at=session.ended_at,
         duration_minutes=_duration_minutes(session),
@@ -340,7 +342,7 @@ def client_analytics_to_read(db: Session, session_clients: list[SessionClient]) 
         total_volume_kg=total_volume_kg,
         average_volume_kg=round(total_volume_kg / total_sessions, 1) if total_sessions else 0,
         best_volume_kg=max((item.volume_kg for item in session_summaries), default=0),
-        completion_rate=round((total_sets / planned_sets) * 100) if planned_sets else 0,
+        completion_rate=min(100, round((total_sets / planned_sets) * 100)) if planned_sets else 0,
         average_session_minutes=round(total_duration / total_sessions) if total_sessions else 0,
         volume_by_session=[
             ClientVolumePoint(

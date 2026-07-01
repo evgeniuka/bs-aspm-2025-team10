@@ -51,7 +51,9 @@ def _planned_sets(item: SessionClient) -> int:
 
 
 def _completion_rate(completed: int, planned: int) -> int:
-    return round((completed / planned) * 100) if planned else 0
+    if not planned:
+        return 0
+    return min(100, round((completed / planned) * 100))
 
 
 def _week_start(value: datetime) -> str:

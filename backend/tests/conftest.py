@@ -45,7 +45,11 @@ def db() -> Generator[Session, None, None]:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    test_client = TestClient(app)
+    # The API requires X-Requested-With on state-changing requests (CSRF defense-in-depth);
+    # the real frontend sends it on every request, so mirror that default here.
+    test_client.headers.update({"X-Requested-With": "fitcoach"})
+    return test_client
 
 
 @pytest.fixture

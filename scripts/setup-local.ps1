@@ -110,11 +110,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
         }
     }
 
-    Invoke-Step "Run database migrations" {
+    Invoke-Step "Prepare database schema" {
         $env:DATABASE_URL = $DatabaseUrl
         Push-Location $Backend
         try {
-            & $BackendPython -m alembic upgrade head
+            if ($DatabaseUrl -notmatch "^sqlite") {
+                # Postgres/production path: Alembic is the source of truth.
+                & $BackendPython -m alembic upgrade head
+            } else {
+                # SQLite dev path: schema is created by the seed step (Base.metadata.create_all),
+                # so running Alembic here would clash with an already create_all'd database.
+                Write-Host "SQLite dev database: schema is created by the seed step (Alembic is used for Postgres)."
+            }
         }
         finally {
             Pop-Location

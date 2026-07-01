@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.auth import COOKIE_NAME, get_user_from_token, require_role
 from app.config import get_settings
@@ -10,10 +10,8 @@ from app.database import SessionLocal, get_db
 from app.models import (
     Client,
     Program,
-    ProgramExercise,
     SessionClient,
     SessionClientStatus,
-    SessionStatus,
     TrainingSession,
     User,
     UserRole,
@@ -31,35 +29,9 @@ from app.schemas import (
 from app.services import session_service
 from app.services.session_service import CompleteSetCommand
 from app.serializers import session_summary_to_read, session_to_read
+from app.queries import active_session_query as _active_session_query, session_query as _session_query
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
-
-
-def _session_load_options():
-    return (
-        selectinload(TrainingSession.clients)
-        .selectinload(SessionClient.program)
-        .selectinload(Program.exercises)
-        .selectinload(ProgramExercise.exercise),
-        selectinload(TrainingSession.clients).selectinload(SessionClient.client),
-    )
-
-
-def _session_query(session_id: int, trainer_id: int):
-    return (
-        select(TrainingSession)
-        .options(*_session_load_options())
-        .where(TrainingSession.id == session_id, TrainingSession.trainer_id == trainer_id)
-    )
-
-
-def _active_session_query(trainer_id: int):
-    return (
-        select(TrainingSession)
-        .options(*_session_load_options())
-        .where(TrainingSession.trainer_id == trainer_id, TrainingSession.status == SessionStatus.active)
-        .order_by(TrainingSession.started_at.desc())
-    )
 
 
 def _validate_session_payload(db: Session, trainer_id: int, payload: SessionCreate) -> list[tuple[int, int]]:
@@ -171,6 +143,7 @@ async def start_next_set(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     result = session_service.start_next_set(session, client_id)
+    session.revision = (session.revision or 0) + 1
     db.commit()
     session = db.scalar(_session_query(session_id, current_user.id))
     return await _broadcast_session(db, session, result.event_type)
@@ -190,6 +163,7 @@ async def complete_set(
 
     command = CompleteSetCommand(**payload.model_dump()) if payload else CompleteSetCommand()
     result = session_service.complete_set(db, session, client_id, command)
+    session.revision = (session.revision or 0) + 1
     db.commit()
     session = db.scalar(_session_query(session_id, current_user.id))
     return await _broadcast_session(db, session, result.event_type)
@@ -207,6 +181,7 @@ async def undo_last_set(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
     result = session_service.undo_last_set(db, session, client_id)
+    session.revision = (session.revision or 0) + 1
     db.commit()
     session = db.scalar(_session_query(session_id, current_user.id))
     return await _broadcast_session(db, session, result.event_type)
@@ -222,6 +197,7 @@ async def end_session(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     result = session_service.end_session(session)
+    session.revision = (session.revision or 0) + 1
     db.commit()
     session = db.scalar(_session_query(session_id, current_user.id))
     return await _broadcast_session(db, session, result.event_type)
@@ -278,6 +254,10 @@ async def session_socket(websocket: WebSocket, session_id: int) -> None:
         if not session:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
+
+    if manager.is_full(session_id):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     connected = False
     try:

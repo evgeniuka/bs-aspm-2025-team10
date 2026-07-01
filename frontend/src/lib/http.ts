@@ -32,6 +32,7 @@ export async function request<T>(baseUrl: string, path: string, options: Request
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        "X-Requested-With": "fitcoach",
         ...(headers ?? {})
       },
       body: json === undefined ? requestOptions.body : JSON.stringify(json),

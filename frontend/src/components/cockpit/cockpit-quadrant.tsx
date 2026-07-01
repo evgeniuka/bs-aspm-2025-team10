@@ -9,6 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ClientAvatar } from "@/components/ui/client-avatar";
 
+function restSecondsRemaining(participant: SessionParticipant, now: number) {
+  if (participant.status !== "resting") return participant.rest_time_remaining;
+  if (!participant.rest_ends_at) return participant.rest_time_remaining;
+  // Anchor the countdown to the server's absolute end time so it survives remounts,
+  // reconnects, and unrelated broadcasts instead of resetting to the full duration.
+  // Treat a timezone-less timestamp (SQLite stores DateTime as naive) as UTC, so the
+  // countdown is not skewed by the browser's local UTC offset.
+  const raw = participant.rest_ends_at;
+  const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(raw) ? raw : `${raw}Z`;
+  return Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
+}
+
 export function CockpitQuadrant({
   participant,
   onCompleteSet,
@@ -22,7 +34,7 @@ export function CockpitQuadrant({
   onUndoLastSet: (clientId: number) => void;
   disabled?: boolean;
 }) {
-  const [displayedRest, setDisplayedRest] = useState(() => participant.rest_time_remaining);
+  const [now, setNow] = useState(() => Date.now());
   const current = participant.program.exercises[participant.current_exercise_index];
   const [actualReps, setActualReps] = useState(() => String(current?.reps ?? 0));
   const [actualWeight, setActualWeight] = useState(() => String(current?.weight_kg ?? 0));
@@ -36,23 +48,17 @@ export function CockpitQuadrant({
     () => participant.sets_completed.reduce((sum, set) => sum + set.volume_kg, 0),
     [participant.sets_completed]
   );
-  const restTimer =
-    participant.status === "resting"
-      ? displayedRest
-      : participant.rest_time_remaining;
+  const restTimer = restSecondsRemaining(participant, now);
   const progress = useMemo(() => {
     if (totalPlannedSets === 0) return 0;
     return Math.min(100, Math.round((completedSets / totalPlannedSets) * 100));
   }, [completedSets, totalPlannedSets]);
 
   useEffect(() => {
-    if (participant.status !== "resting") return;
-    const restStartedAt = Date.now();
-    const id = window.setInterval(() => {
-      setDisplayedRest(Math.max(0, participant.rest_time_remaining - Math.floor((Date.now() - restStartedAt) / 1000)));
-    }, 1000);
+    if (participant.status !== "resting" || !participant.rest_ends_at) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [participant.rest_time_remaining, participant.status]);
+  }, [participant.status, participant.rest_ends_at]);
 
   function completeSet() {
     if (!current) return;
@@ -72,18 +78,18 @@ export function CockpitQuadrant({
           <div className="flex min-w-0 items-center gap-3">
             <ClientAvatar name={participant.client_name} size="lg" />
             <div className="min-w-0">
-              <h3 className="truncate text-xl font-bold text-ink">{participant.client_name}</h3>
+              <h3 className="truncate text-lg font-semibold text-ink">{participant.client_name}</h3>
               <p className="truncate text-sm text-muted">{participant.program.name}</p>
             </div>
           </div>
           <span className={statusClassName(participant.status)}>{participant.status}</span>
         </div>
         <div className="mt-5">
-          <p className="text-xs font-semibold uppercase text-muted">Current exercise</p>
-          <p className="mt-1 text-2xl font-bold text-ink">{current?.exercise.name ?? "Workout complete"}</p>
+          <p className="field-label">Current exercise</p>
+          <p className="mt-1 text-xl font-semibold text-ink">{current?.exercise.name ?? "Workout complete"}</p>
           {current && (
             <p className="mt-1 text-sm text-muted">
-              Set {participant.current_set} of {current.sets} - {current.reps} reps - {current.weight_kg}kg
+              Set {participant.current_set} of {current.sets} · {current.reps} reps · {current.weight_kg}kg
             </p>
           )}
           <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
@@ -92,7 +98,7 @@ export function CockpitQuadrant({
             <MiniStat label="Volume" value={`${completedVolume}kg`} />
           </div>
           {participant.today_check_in && (
-            <div className="mt-3 rounded-md border border-line bg-white/75 px-3 py-2">
+            <div className="mt-3 rounded-lg border border-line bg-panel px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="field-label">Today check-in</p>
                 <span className={checkInStatusClass(participant.today_check_in.readiness_status)}>
@@ -100,11 +106,11 @@ export function CockpitQuadrant({
                   {participant.today_check_in.readiness_status}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-semibold text-muted">
-                Energy {participant.today_check_in.energy_level}/5 - Sleep {participant.today_check_in.sleep_quality}/5 - Soreness {participant.today_check_in.soreness_level}/5
+              <p className="mt-1 text-xs text-muted">
+                Energy {participant.today_check_in.energy_level}/5 · Sleep {participant.today_check_in.sleep_quality}/5 · Soreness {participant.today_check_in.soreness_level}/5
               </p>
               {participant.today_check_in.pain_notes && (
-                <p className="mt-1 line-clamp-2 text-xs font-semibold text-ink">{participant.today_check_in.pain_notes}</p>
+                <p className="mt-1 line-clamp-2 text-xs font-medium text-ink">{participant.today_check_in.pain_notes}</p>
               )}
             </div>
           )}
@@ -113,9 +119,9 @@ export function CockpitQuadrant({
 
       <div className="space-y-4">
         <div>
-          <div className="mb-1 flex justify-between text-xs font-semibold text-muted">
+          <div className="mb-1.5 flex justify-between text-xs text-muted">
             <span>Session progress</span>
-            <span>{progress}%</span>
+            <span className="font-medium text-ink">{progress}%</span>
           </div>
           <div className="meter-track">
             <div className="meter-fill" style={{ width: `${progress}%` }} />
@@ -123,18 +129,18 @@ export function CockpitQuadrant({
         </div>
 
         {isComplete ? (
-          <div className="flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
-            <CheckCircle2 className="text-success" size={22} />
+          <div className="flex items-center gap-3 rounded-lg border border-success-soft bg-success-soft p-3">
+            <CheckCircle2 className="text-success" size={20} />
             <div>
-              <p className="text-xs font-semibold uppercase text-success">Saved</p>
-              <p className="text-sm font-semibold text-ink">Client history updated</p>
+              <p className="text-xs font-medium text-success">Saved</p>
+              <p className="text-sm font-medium text-ink">Client history updated</p>
             </div>
           </div>
         ) : participant.status === "resting" ? (
-          <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md bg-amber-50 p-3">
+          <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg bg-warning-soft p-3">
             <div>
-              <p className="text-xs font-semibold uppercase text-warning">Rest timer</p>
-              <p className="text-2xl font-bold text-warning">{formatTimer(restTimer)}</p>
+              <p className="field-label text-warning">Rest timer</p>
+              <p className="text-2xl font-semibold text-warning">{formatTimer(restTimer)}</p>
             </div>
             <Button disabled={disabled} variant="secondary" onClick={() => onStartNextSet(participant.client_id)}>
               <Play size={16} />
@@ -181,7 +187,7 @@ export function CockpitQuadrant({
         )}
         {!isComplete && completedSets > 0 && (
           <button
-            className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-muted transition hover:bg-panel hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-muted transition hover:bg-panel hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
             disabled={disabled}
             type="button"
             onClick={() => onUndoLastSet(participant.client_id)}
@@ -197,31 +203,31 @@ export function CockpitQuadrant({
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-line bg-white/80 px-2 py-1.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-0.5 font-bold text-ink">{value}</p>
+    <div className="rounded-lg bg-panel px-2.5 py-1.5">
+      <p className="text-[11px] text-muted">{label}</p>
+      <p className="mt-0.5 font-semibold text-ink">{value}</p>
     </div>
   );
 }
 
 function quadrantClassName(status: SessionParticipant["status"]) {
-  if (status === "working") return "border-blue-200 bg-blue-50/40";
-  if (status === "resting") return "border-amber-200 bg-amber-50/45";
-  if (status === "completed") return "border-emerald-200 bg-emerald-50/45";
-  return "bg-white/90";
+  if (status === "working") return "border-brand-soft bg-brand-soft/40";
+  if (status === "resting") return "border-warning-soft bg-warning-soft/50";
+  if (status === "completed") return "border-success-soft bg-success-soft/50";
+  return "";
 }
 
 function statusClassName(status: SessionParticipant["status"]) {
-  const base = "rounded-full border px-3 py-1 text-xs font-bold uppercase";
-  if (status === "working") return `${base} border-blue-200 bg-blue-50 text-brand`;
-  if (status === "resting") return `${base} border-amber-200 bg-amber-50 text-warning`;
-  if (status === "completed") return `${base} border-emerald-200 bg-emerald-50 text-success`;
-  return `${base} border-line bg-panel text-muted`;
+  const base = "rounded-full px-2.5 py-0.5 text-xs font-medium capitalize";
+  if (status === "working") return `${base} bg-brand-soft text-brand`;
+  if (status === "resting") return `${base} bg-warning-soft text-warning`;
+  if (status === "completed") return `${base} bg-success-soft text-success`;
+  return `${base} bg-panel text-muted`;
 }
 
 function checkInStatusClass(status: NonNullable<SessionParticipant["today_check_in"]>["readiness_status"]) {
-  const base = "inline-flex min-h-6 items-center gap-1 rounded-full border px-2 text-[10px] font-bold uppercase";
-  if (status === "attention") return `${base} border-red-200 bg-red-50 text-danger`;
-  if (status === "caution") return `${base} border-amber-200 bg-amber-50 text-warning`;
-  return `${base} border-emerald-200 bg-emerald-50 text-success`;
+  const base = "inline-flex min-h-6 items-center gap-1 rounded-full px-2 text-[11px] font-medium capitalize";
+  if (status === "attention") return `${base} bg-danger-soft text-danger`;
+  if (status === "caution") return `${base} bg-warning-soft text-warning`;
+  return `${base} bg-success-soft text-success`;
 }

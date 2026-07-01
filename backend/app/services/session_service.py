@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -35,6 +36,7 @@ def start_next_set(session: TrainingSession, client_id: int) -> SessionMutationR
     if session_client.status != SessionClientStatus.completed:
         session_client.status = SessionClientStatus.working
         session_client.rest_time_remaining = 0
+        session_client.rest_ends_at = None
     return SessionMutationResult(session=session, event_type="client_status_updated")
 
 
@@ -56,6 +58,7 @@ def complete_set(db: Session, session: TrainingSession, client_id: int, command:
         recalculate_client_progress(db, session_client, status_after_active=SessionClientStatus.resting)
         if session_client.status == SessionClientStatus.resting:
             session_client.rest_time_remaining = current.rest_seconds
+            session_client.rest_ends_at = datetime.now(UTC) + timedelta(seconds=current.rest_seconds)
         event_type = "rest_started"
     else:
         recalculate_client_progress(db, session_client, status_after_active=SessionClientStatus.ready)
@@ -90,6 +93,7 @@ def end_session(session: TrainingSession) -> SessionMutationResult:
     for item in session.clients:
         item.status = SessionClientStatus.completed
         item.rest_time_remaining = 0
+        item.rest_ends_at = None
         item.client.last_workout_date = session.ended_at
     return SessionMutationResult(session=session, event_type="session_ended")
 
@@ -135,6 +139,7 @@ def recalculate_client_progress(
     session_client.current_exercise_index = next_exercise_index
     session_client.current_set = next_set
     session_client.rest_time_remaining = 0
+    session_client.rest_ends_at = None
     session_client.status = SessionClientStatus.completed if all_complete else status_after_active
 
 
@@ -179,18 +184,23 @@ def _insert_set_log_if_missing(
     if existing:
         return
 
-    db.add(
-        WorkoutLog(
-            session_id=session_id,
-            client_id=session_client.client_id,
-            program_exercise_id=current.id,
-            exercise_id=current.exercise_id,
-            set_number=session_client.current_set,
-            reps_completed=command.reps_completed if command.reps_completed is not None else current.reps,
-            weight_kg=command.weight_kg if command.weight_kg is not None else current.weight_kg,
-        )
+    log = WorkoutLog(
+        session_id=session_id,
+        client_id=session_client.client_id,
+        program_exercise_id=current.id,
+        exercise_id=current.exercise_id,
+        set_number=session_client.current_set,
+        reps_completed=command.reps_completed if command.reps_completed is not None else current.reps,
+        weight_kg=command.weight_kg if command.weight_kg is not None else current.weight_kg,
     )
-    db.flush()
+    try:
+        with db.begin_nested():
+            db.add(log)
+            db.flush()
+    except IntegrityError:
+        # A concurrent request already logged this exact set (uq_workout_program_set);
+        # treat the duplicate as an idempotent no-op instead of surfacing a 500.
+        pass
 
 
 def _logs_for_session_client(db: Session, session_id: int, client_id: int) -> list[WorkoutLog]:

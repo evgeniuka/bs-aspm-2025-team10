@@ -82,7 +82,7 @@ export function ClientManagementView() {
     <div className="page-wrap">
       <header className="page-titlebar visual-card flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Roster management</p>
+          <p className="text-xs font-semibold text-muted">Roster management</p>
           <h1 className="text-3xl font-bold text-ink">Clients</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">Create profiles, keep goals current, and archive inactive clients without touching session history.</p>
         </div>

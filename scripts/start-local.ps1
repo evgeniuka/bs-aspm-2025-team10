@@ -139,7 +139,12 @@ try {
     Invoke-Step "Prepare database" {
         Push-Location $Backend
         try {
-            & $BackendPython -m alembic upgrade head
+            if ($DatabaseUrl -notmatch "^sqlite") {
+                # Postgres/production path: Alembic is the source of truth.
+                & $BackendPython -m alembic upgrade head
+            }
+            # SQLite dev path: the seed step below creates the schema via Base.metadata.create_all,
+            # which stays compatible whether the DB is fresh or already create_all'd.
             if ($ResetDemo) {
                 & $BackendPython -m app.seed --reset-demo
             } else {

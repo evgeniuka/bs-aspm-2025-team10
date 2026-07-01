@@ -158,14 +158,14 @@ export function TrainerAnalyticsCard({ analytics }: { analytics: TrainerAnalytic
 
           <PanelBlock title="Top exercises" subtitle="Most loaded movements by actual logs">
             <div className="overflow-hidden rounded-md border border-line">
-              <div className="grid grid-cols-[1fr_70px_78px_60px] bg-panel px-3 py-2 text-xs font-bold uppercase text-muted">
+              <div className="grid grid-cols-[minmax(0,1fr)_70px_78px_60px] bg-panel px-3 py-2 text-xs font-bold uppercase text-muted">
                 <span>Exercise</span>
                 <span className="text-right">Sets</span>
                 <span className="text-right">Volume</span>
                 <span className="text-right">Clients</span>
               </div>
               {analytics.top_exercises.map((exercise) => (
-                <div className="grid grid-cols-[1fr_70px_78px_60px] items-center border-t border-line px-3 py-2 text-sm" key={exercise.exercise_id}>
+                <div className="grid grid-cols-[minmax(0,1fr)_70px_78px_60px] items-center border-t border-line px-3 py-2 text-sm" key={exercise.exercise_id}>
                   <span className="font-semibold text-ink">{exercise.exercise_name}</span>
                   <span className="text-right text-muted">{exercise.sets_completed}</span>
                   <span className="text-right font-semibold text-ink">{exercise.volume_kg}kg</span>
@@ -179,14 +179,14 @@ export function TrainerAnalyticsCard({ analytics }: { analytics: TrainerAnalytic
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <PanelBlock title="Client load" subtitle="Volume and adherence by client">
             <div className="overflow-hidden rounded-md border border-line">
-              <div className="grid grid-cols-[1fr_88px_88px] bg-panel px-3 py-2 text-xs font-bold uppercase text-muted">
+              <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] bg-panel px-3 py-2 text-xs font-bold uppercase text-muted">
                 <span>Client</span>
                 <span className="text-right">Volume</span>
                 <span className="text-right">Complete</span>
               </div>
               {analytics.client_load.map((client) => (
                 <a
-                  className="grid grid-cols-[1fr_88px_88px] items-center border-t border-line px-3 py-2 text-sm transition hover:bg-panel"
+                  className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center border-t border-line px-3 py-2 text-sm transition hover:bg-panel"
                   href={routes.client(client.client_id)}
                   key={client.client_id}
                 >
@@ -228,7 +228,7 @@ function SingleDayVolume({ date, sets, volume }: { date: string; sets: number; v
   return (
     <div className="flex h-64 flex-col justify-between rounded-md bg-panel p-4">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-muted">Recorded volume</p>
+        <p className="text-xs font-semibold text-muted">Recorded volume</p>
         <p className="mt-2 text-3xl font-bold text-ink">{volume}kg</p>
         <p className="mt-1 text-sm text-muted">
           {sets} completed sets on {date}

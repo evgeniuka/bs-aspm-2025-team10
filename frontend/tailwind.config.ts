@@ -5,22 +5,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
-        muted: "#667085",
-        line: "#d7deea",
-        panel: "#f6f8fb",
-        mist: "#eaf0f7",
+        ink: "#1b1e24",
+        muted: "#6b7280",
+        faint: "#9aa1ac",
+        line: "#e8eaef",
+        panel: "#f4f5f8",
+        mist: "#eef1f6",
+        canvas: "#f7f8fa",
         brand: "#2454d6",
+        "brand-soft": "#eef2fe",
         teal: "#0f766e",
         gold: "#b45309",
         coral: "#be3f4f",
         success: "#15803d",
+        "success-soft": "#e9f6ec",
         warning: "#b45309",
-        danger: "#b91c1c"
+        "warning-soft": "#faf1e2",
+        danger: "#b91c1c",
+        "danger-soft": "#fbecec"
+      },
+      borderRadius: {
+        xl: "14px",
+        "2xl": "18px"
       },
       boxShadow: {
-        panel: "0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.04)",
-        elevated: "0 18px 48px rgba(16, 24, 40, 0.10), 0 2px 6px rgba(16, 24, 40, 0.05)"
+        card: "0 1px 2px rgba(16, 24, 40, 0.04)",
+        panel: "0 1px 2px rgba(16, 24, 40, 0.05)",
+        elevated: "0 10px 30px rgba(16, 24, 40, 0.08)"
       }
     }
   },

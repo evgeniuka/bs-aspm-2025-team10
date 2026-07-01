@@ -39,7 +39,7 @@ export function ClientSessionSummaryView({ sessionId }: { sessionId: number }) {
     <main className="page-wrap">
       <header className="page-titlebar flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">Your session summary</p>
+          <p className="text-xs font-semibold text-muted">Your session summary</p>
           <h1 className="text-3xl font-bold text-ink">Session #{data.session_id}</h1>
           <p className="mt-1 text-sm text-muted">
             {formatDate(data.ended_at ?? data.started_at)} - based on actual logged reps and weight
