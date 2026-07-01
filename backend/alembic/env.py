@@ -9,6 +9,7 @@ from sqlalchemy import engine_from_config, pool
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from app.config import normalize_database_url
 from app.database import Base
 import app.models  # noqa: F401
 
@@ -18,7 +19,7 @@ if config.config_file_name is not None:
 
 config.set_main_option(
     "sqlalchemy.url",
-    os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url")),
+    normalize_database_url(os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))),
 )
 target_metadata = Base.metadata
 

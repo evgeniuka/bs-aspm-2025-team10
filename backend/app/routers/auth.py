@@ -30,7 +30,10 @@ def login(payload: LoginRequest, response: Response, db: Annotated[Session, Depe
         value=token,
         httponly=True,
         secure=settings.secure_cookies,
-        samesite="lax",
+        # Cross-site (Vercel frontend -> Render backend) needs SameSite=None so the browser
+        # attaches the auth cookie to fetch AND the cockpit WebSocket. None requires Secure,
+        # which production enforces via SECURE_COOKIES=true. Local dev keeps Lax.
+        samesite="none" if settings.secure_cookies else "lax",
         max_age=settings.access_token_expire_minutes * 60,
     )
     return AuthResponse(user=UserRead.model_validate(user))
@@ -38,7 +41,13 @@ def login(payload: LoginRequest, response: Response, db: Annotated[Session, Depe
 
 @router.post("/logout")
 def logout(response: Response) -> dict[str, bool]:
-    response.delete_cookie(COOKIE_NAME)
+    settings = get_settings()
+    response.delete_cookie(
+        COOKIE_NAME,
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite="none" if settings.secure_cookies else "lax",
+    )
     return {"ok": True}
 
 

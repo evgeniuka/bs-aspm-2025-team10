@@ -9,15 +9,27 @@ DEFAULT_SECRET_KEY = "dev-secret-change-me"
 MIN_SECRET_KEY_LENGTH = 32
 
 
+def normalize_database_url(url: str) -> str:
+    # Managed Postgres (Render/Heroku/Supabase) hands out `postgres://` or `postgresql://`,
+    # but the app and Alembic use the psycopg3 driver, so pin it in the scheme.
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
+
+
 class Settings:
     app_name = "FitCoach Pro 2 API"
     api_prefix = "/api/v1"
 
     def __init__(self) -> None:
         self.environment = os.getenv("ENVIRONMENT", "development").lower()
-        self.database_url = os.getenv(
-            "DATABASE_URL",
-            "postgresql+psycopg://fitcoach:fitcoach@localhost:5432/fitcoach",
+        self.database_url = normalize_database_url(
+            os.getenv(
+                "DATABASE_URL",
+                "postgresql+psycopg://fitcoach:fitcoach@localhost:5432/fitcoach",
+            )
         )
         self.secret_key = os.getenv("SECRET_KEY", DEFAULT_SECRET_KEY)
         self.access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))

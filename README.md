@@ -156,6 +156,10 @@ Before publishing the project publicly, use `docs/PUBLISH_CHECKLIST.md` to verif
 
 ## Deployment Notes
 
+See **`DEPLOYMENT.md`** for the full step-by-step runbook (Render backend + Postgres, Vercel
+frontend, migrations/seed, and the cross-site cookie/WebSocket topology). `render.yaml` is a
+one-click Render blueprint. Quick reference:
+
 - Frontend: Vercel, using `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL`.
 - Backend: Render Web Service running `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 - Database: Render Postgres or Supabase Postgres via the same `DATABASE_URL`.
